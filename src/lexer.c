@@ -48,6 +48,7 @@ const char *types[] = {
     "chr",
     "bln",
     "void",
+    "ptr",
 };
 
 const char *operators[] = {
