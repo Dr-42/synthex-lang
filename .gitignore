@@ -1,0 +1,5 @@
+.bld_cpp
+compile_commands.json
+.vscode
+*.syn
+*.synh

@@ -1,0 +1,3 @@
+# Synthex Lang
+
+## BABY PROJECT
