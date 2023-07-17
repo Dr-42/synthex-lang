@@ -9,27 +9,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    FILE *file = fopen(argv[1], "r");
-    if (file == NULL) {
-        printf("Error: Could not open file %s\n", argv[1]);
+    Lexer *lexer = lexer_create(argv[1]);
+    if (lexer == NULL) {
+        printf("Failed to create lexer\n");
         return 1;
     }
-
-    char file_contents[1000];
-    memset(file_contents, 0, sizeof(file_contents));
-
-    char line[256];
-    memset(line, 0, sizeof(line));
-
-    while (fgets(line, sizeof(line), file)) {
-        strcat(file_contents, line);
-    }
-
-    printf("File contents: \n%s\n", file_contents);
-
-    Lexer *lexer = lexer_create(argv[1], file_contents);
     lexer_print_tokens(lexer);
-    lexer_destroy(lexer);
 
+    lexer_destroy(lexer);
     return 0;
 }
