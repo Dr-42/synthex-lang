@@ -148,7 +148,7 @@ Token *lexer_next_token(Lexer *lexer) {
 
     if (c >= '0' && c <= '9') {
         uint32_t start = lexer->index;
-        while (lexer->contents[lexer->index] >= '0' && lexer->contents[lexer->index] <= '9') {
+        while ((lexer->contents[lexer->index] >= '0' && lexer->contents[lexer->index] <= '9') || lexer->contents[lexer->index] == '.') {
             lexer->index++;
         }
         uint32_t end = lexer->index;
