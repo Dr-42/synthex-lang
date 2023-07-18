@@ -72,7 +72,6 @@ Node* ast_parse_statement(Lexer* lexer) {
         assert(false);
     }
 
-    lexer_advance_cursor(lexer, 1);
     if (lexer_peek_token(lexer, 0)->type == TOKEN_PUNCTUATION && strcmp(lexer_peek_token(lexer, 0)->value, ";") == 0) {
         lexer_advance_cursor(lexer, 1);
     }
@@ -131,6 +130,7 @@ Node* ast_parse_function(Lexer* lexer) {
     lexer_advance_cursor(lexer, 2);
     Node* block = ast_parse_block(lexer);
     node_add_child(function, block);
+    lexer_advance_cursor(lexer, 1);
     return function;
 }
 
@@ -300,12 +300,14 @@ Node* ast_parse_expression(Lexer* lexer) {
                 break;
             case TOKEN_PUNCTUATION:
                 if (strcmp(token->value, "(") == 0) {
+                    lexer_advance_cursor(lexer, 1);
                     node_add_child(expression, ast_parse_expression(lexer));
+                    continue;
                 } else if (strcmp(token->value, ")") == 0) {
-                    return expression;
-                } else if (strcmp(token->value, ",") == 0) {
+                    lexer_advance_cursor(lexer, 1);
                     return expression;
                 } else if (strcmp(token->value, ";") == 0) {
+                    lexer_advance_cursor(lexer, 1);
                     return expression;
                 } else {
                     fprintf(stderr, "Unexpected punctuation in expression: %s\n", token->value);
