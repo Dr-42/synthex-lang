@@ -8,9 +8,21 @@
 extern const char* keywords[];
 extern const size_t KEYWORD_COUNT;
 
-const char* declared_variables[100];
+typedef struct Function {
+    const char* name;
+    const char* return_type;
+    const char* arguments[100];
+    size_t argument_count;
+} Function;
+
+typedef struct Variable {
+    const char* name;
+    const char* type;
+} Variable;
+
+Variable declared_variables[100];
 size_t declared_variables_count = 0;
-const char* declared_functions[100];
+Function declared_functions[100];
 size_t declared_functions_count = 0;
 
 AST* ast_create() {
@@ -26,6 +38,24 @@ void ast_destroy(AST* ast) {
 
 void ast_print(AST* ast) {
     print_node(ast->root, 0);
+}
+
+void ast_print_declarations() {
+    printf("Variables:\n");
+    for (size_t i = 0; i < declared_variables_count; i++) {
+        printf("\t%s: %s\n", declared_variables[i].name, declared_variables[i].type);
+    }
+    printf("Functions:\n");
+    for (size_t i = 0; i < declared_functions_count; i++) {
+        printf("\t%s: %s(", declared_functions[i].name, declared_functions[i].return_type);
+        for (size_t j = 0; j < declared_functions[i].argument_count; j++) {
+            printf("%s : %s", declared_functions[i].arguments[j], declared_variables[j].type);
+            if (j != declared_functions[i].argument_count - 1) {
+                printf(", ");
+            }
+        }
+        printf(")\n");
+    }
 }
 
 void ast_build(AST* ast, Lexer* lexer) {
@@ -130,6 +160,18 @@ Node* ast_parse_function(Lexer* lexer) {
     lexer_advance_cursor(lexer, 2);
     Node* block = ast_parse_block(lexer);
     node_add_child(function, block);
+
+    declared_functions[declared_functions_count].name = identifier->data;
+    declared_functions[declared_functions_count].return_type = type->data;
+    for (size_t i = 0; i < function->num_children; i++) {
+        if (function->children[i]->type == NODE_FUNCTION_ARGUMENT) {
+            declared_functions[declared_functions_count].arguments[declared_functions[declared_functions_count].argument_count] = function->children[i]->data;
+            declared_functions[declared_functions_count].argument_count++;
+        }
+    }
+
+    declared_functions_count++;
+
     lexer_advance_cursor(lexer, 1);
     return function;
 }
@@ -206,15 +248,15 @@ Node* ast_parse_assignment(Lexer* lexer) {
 
     if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
         if (declared_variables_count == 0) {
-            fprintf(stderr, "Cannot assign to undeclared variable %s\n", token->value);
+            fprintf(stderr, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
             assert(false);
         }
 
         for (size_t i = 0; i < declared_variables_count; i++) {
-            if (strcmp(declared_variables[i], identifier->data) == 0) {
+            if (strcmp(declared_variables[i].name, identifier->data) == 0) {
                 break;
             } else if (i == declared_variables_count - 1) {
-                fprintf(stderr, "Cannot assign to undeclared variable %s\n", token->value);
+                fprintf(stderr, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
                 assert(false);
             }
         }
@@ -242,6 +284,11 @@ Node* ast_parse_assignment(Lexer* lexer) {
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
         lexer_advance_cursor(lexer, 4);
         identifier->type = NODE_VARIABLE_DECLARATION;
+
+        declared_variables[declared_variables_count].name = identifier->data;
+        declared_variables[declared_variables_count].type = type->data;
+        declared_variables_count++;
+
         return identifier;
     } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
         lexer_advance_cursor(lexer, 4);
@@ -249,6 +296,11 @@ Node* ast_parse_assignment(Lexer* lexer) {
         Node* assignment = create_node(NODE_ASSIGNMENT, NULL);
         node_add_child(assignment, identifier);
         node_add_child(assignment, expression);
+
+        declared_variables[declared_variables_count].name = identifier->data;
+        declared_variables[declared_variables_count].type = type->data;
+        declared_variables_count++;
+
         return assignment;
     } else {
         fprintf(stderr, "Expected semicolon or assignment operator after type annotation in assignment, got %s\n", token->value);
@@ -269,7 +321,7 @@ Node* ast_parse_expression(Lexer* lexer) {
                 Token* next_tok = lexer_peek_token(lexer, 1);
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
                     // node_add_child(expression, ast_parse_call_expression(lexer));
-                    //  TODO: Implement call expressions
+                    assert(false && " TODO: Implement call expressions");
                 } else {
                     node_add_child(expression, create_node(NODE_IDENTIFIER, token->value));
                 }

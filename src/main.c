@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
     AST *ast = ast_create();
     ast_build(ast, lexer);
     ast_print(ast);
+    ast_print_declarations();
 
     ast_destroy(ast);
     lexer_destroy(lexer);
