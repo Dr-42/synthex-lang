@@ -28,7 +28,7 @@ const char *keywords[] = {
     "pub",
     "prv",
     "const",
-    "sizeof",
+    "stat"
     "as",
     "null",
 };
@@ -67,7 +67,6 @@ const char *operators[] = {
     ">>",
     "++",
     "--",
-    "->",
     ".",
     "+",
     "-",
@@ -103,11 +102,11 @@ const char *comments[] = {
     "///",
 };
 
-#define KEYWORD_COUNT (sizeof(keywords) / sizeof(keywords[0]))
-#define TYPE_COUNT (sizeof(types) / sizeof(types[0]))
-#define OPERATOR_COUNT (sizeof(operators) / sizeof(operators[0]))
-#define PUNCTUATION_COUNT (sizeof(punctuation) / sizeof(punctuation[0]))
-#define COMMENT_COUNT (sizeof(comments) / sizeof(comments[0]))
+const size_t KEYWORD_COUNT = (sizeof(keywords) / sizeof(keywords[0]));
+const size_t TYPE_COUNT = (sizeof(types) / sizeof(types[0]));
+const size_t OPERATOR_COUNT = (sizeof(operators) / sizeof(operators[0]));
+const size_t PUNCTUATION_COUNT = (sizeof(punctuation) / sizeof(punctuation[0]));
+const size_t COMMENT_COUNT = (sizeof(comments) / sizeof(comments[0]));
 
 Lexer *lexer_create(char *filename) {
     Lexer *lexer = calloc(1, sizeof(Lexer));
@@ -144,14 +143,19 @@ Token *lexer_peek_token(Lexer *lexer, size_t offset) {
     uint32_t index = lexer->index;
     uint32_t line = lexer->line;
     uint32_t column = lexer->column;
-    Token *token = NULL;
-    for (size_t i = 0; i < offset; i++) {
-        token = lexer_next_token(lexer);
-    }
+    Token *token = &tokens[lexer->index + offset];
     lexer->index = index;
     lexer->line = line;
     lexer->column = column;
     return token;
+}
+
+void lexer_set_cursor(Lexer *lexer, size_t index) {
+    lexer->index = index;
+}
+
+void lexer_advance_cursor(Lexer *lexer, int32_t offset) {
+    lexer->index += offset;
 }
 
 Token *lexer_create_token(Lexer *lexer, TokenType type, size_t start, size_t end) {
@@ -296,4 +300,12 @@ Token *lexer_next_token(Lexer *lexer) {
     }
 
     return lexer_create_token(lexer, TOKEN_EOF, lexer->index, lexer->index);
+}
+
+void lexer_lexall(Lexer *lexer, bool print) {
+    Token *token = NULL;
+    while ((token = lexer_next_token(lexer))->type != TOKEN_EOF) {
+        if (print)
+            lexer_print_token(token);
+    }
 }

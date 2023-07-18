@@ -47,22 +47,40 @@ char* node_type_to_string(NodeType type) {
             return "NODE_VARIABLE_DECLARATION";
         case NODE_FUNCTION_DECLARATION:
             return "NODE_FUNCTION_DECLARATION";
+        case NODE_FUNCTION_ARGUMENT:
+            return "NODE_FUNCTION_ARGUMENT";
+        case NODE_ASSIGNMENT:
+            return "NODE_ASSIGNMENT";
         case NODE_IDENTIFIER:
             return "NODE_IDENTIFIER";
+        case NODE_TYPE:
+            return "NODE_TYPE";
         case NODE_BLOCK_STATEMENT:
             return "NODE_BLOCK_STATEMENT";
         case NODE_RETURN_STATEMENT:
             return "NODE_RETURN_STATEMENT";
-        case NODE_BINARY_EXPRESSION:
-            return "NODE_BINARY_EXPRESSION";
+        case NODE_OPERATOR:
+            return "NODE_OPERATOR";
+        case NODE_EXPRESSION:
+            return "NODE_EXPRESSION";
         case NODE_IF_STATEMENT:
             return "NODE_IF_STATEMENT";
         case NODE_NUMERIC_LITERAL:
             return "NODE_NUMERIC_LITERAL";
+        case NODE_FLOAT_LITERAL:
+            return "NODE_FLOAT_LITERAL";
         case NODE_CALL_EXPRESSION:
             return "NODE_CALL_EXPRESSION";
         case NODE_STRING_LITERAL:
             return "NODE_STRING_LITERAL";
+        case NODE_TRUE_LITERAL:
+            return "NODE_TRUE_LITERAL";
+        case NODE_FALSE_LITERAL:
+            return "NODE_FALSE_LITERAL";
+        case NODE_NULL_LITERAL:
+            return "NODE_NULL_LITERAL";
+        case NODE_COMMENT:
+            return "NODE_COMMENT";
         default:
             return "UNKNOWN";
     }
