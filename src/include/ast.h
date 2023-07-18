@@ -24,3 +24,4 @@ Node* ast_parse_function_argument(Lexer* lexer);
 Node* ast_parse_block(Lexer* lexer);
 Node* ast_parse_assignment(Lexer* lexer);
 Node* ast_parse_expression(Lexer* lexer);
+Node* ast_parse_call_expression(Lexer* lexer);

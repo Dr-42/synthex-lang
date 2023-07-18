@@ -313,6 +313,7 @@ Node* ast_parse_assignment(Lexer* lexer) {
 Node* ast_parse_expression(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* expression = create_node(NODE_EXPRESSION, NULL);
+    bool encountered_opening_parenthesis = false;
     while (true) {
         token = lexer_peek_token(lexer, 0);
 
@@ -320,8 +321,7 @@ Node* ast_parse_expression(Lexer* lexer) {
             case TOKEN_IDENTIFIER:
                 Token* next_tok = lexer_peek_token(lexer, 1);
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
-                    // node_add_child(expression, ast_parse_call_expression(lexer));
-                    assert(false && " TODO: Implement call expressions");
+                    node_add_child(expression, ast_parse_call_expression(lexer));
                 } else {
                     node_add_child(expression, create_node(NODE_IDENTIFIER, token->value));
                 }
@@ -353,9 +353,15 @@ Node* ast_parse_expression(Lexer* lexer) {
             case TOKEN_PUNCTUATION:
                 if (strcmp(token->value, "(") == 0) {
                     lexer_advance_cursor(lexer, 1);
+                    encountered_opening_parenthesis = true;
                     node_add_child(expression, ast_parse_expression(lexer));
                     continue;
                 } else if (strcmp(token->value, ")") == 0) {
+                    if (encountered_opening_parenthesis) {
+                        lexer_advance_cursor(lexer, 1);
+                    }
+                    return expression;
+                } else if (strcmp(token->value, ",") == 0) {
                     lexer_advance_cursor(lexer, 1);
                     return expression;
                 } else if (strcmp(token->value, ";") == 0) {
@@ -376,4 +382,50 @@ Node* ast_parse_expression(Lexer* lexer) {
     }
 
     return expression;
+}
+
+Node* ast_parse_call_expression(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+
+    if (token->type != TOKEN_IDENTIFIER) {
+        fprintf(stderr, "Expected identifier as left-hand side of call expression, got %s\n", token->value);
+        assert(false);
+    }
+
+    for (size_t i = 0; i < declared_functions_count; i++) {
+        if (strcmp(declared_functions[i].name, token->value) == 0) {
+            break;
+        } else if (i == declared_functions_count - 1) {
+            fprintf(stderr, "Cannot call undeclared function %s\n", token->value);
+            assert(false);
+        }
+    }
+
+    Node* call_expression = create_node(NODE_CALL_EXPRESSION, NULL);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    node_add_child(call_expression, identifier);
+    token = lexer_peek_token(lexer, 1);
+    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "(") != 0) {
+        fprintf(stderr, "Expected opening parenthesis after identifier in call expression, got %s\n", token->value);
+        assert(false);
+    }
+    lexer_advance_cursor(lexer, 2);
+    while (true) {
+        token = lexer_peek_token(lexer, 0);
+        if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ")") == 0) {
+            break;
+        }
+        Node* argument = ast_parse_expression(lexer);
+        if (argument == NULL) {
+            break;
+        } else {
+            node_add_child(call_expression, argument);
+        }
+    }
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, ")") != 0) {
+        fprintf(stderr, "Expected closing parenthesis after call expression, got %s\n", token->value);
+        assert(false);
+    }
+    return call_expression;
 }
