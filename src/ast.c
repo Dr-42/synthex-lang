@@ -84,7 +84,7 @@ Node* ast_parse_function(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_KEYWORD);
     assert(strcmp(token->value, keywords[KEYWORD_FNC]) == 0);
-    Node* function = create_node(NODE_FUNCTION_DECLARATION, token->value);
+    Node* function = create_node(NODE_FUNCTION_DECLARATION, NULL);
     token = lexer_peek_token(lexer, 1);
     if (token->type != TOKEN_IDENTIFIER) {
         fprintf(stderr, "Expected identifier after function keyword, got %s\n", token->value);
