@@ -53,15 +53,18 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
     LLVMCreateExecutionEngineForModule(&engine, module, &error);
 
     // Emit .ll file
-    char* ll_filename = calloc(strlen(lexer->filename) + 3, sizeof(char));
-    strcpy(ll_filename, lexer->filename);
-    strcat(ll_filename, ".ll");
+    char* ll_filename = strcat(lexer->filename, ".ll");
     LLVMPrintModuleToFile(module, ll_filename, &error);
     if (error) {
         printf("Error: %s\n", error);
         LLVMDisposeMessage(error);
     }
-    free(ll_filename);
+
+    LLVMRemoveModule(engine, module, &module, &error);
+    if (error) {
+        printf("Error: %s\n", error);
+        LLVMDisposeMessage(error);
+    }
 
     LLVMDisposeExecutionEngine(engine);
     LLVMDisposeBuilder(builder);
@@ -69,77 +72,69 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
     LLVMContextDispose(ctx);
 }
 
-void visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef lhs = NULL;
-    for (size_t i = 0; i < node->num_children; i++) {
-        Node* child = node->children[i];
-        switch (child->type) {
-            case NODE_PROGRAM:
-                visit_node_program(child, lexer, module, builder);
-                break;
-            case NODE_VARIABLE_DECLARATION:
-                visit_node_variable_declaration(child, lexer, module, builder);
-                break;
-            case NODE_FUNCTION_DECLARATION:
-                visit_node_function_declaration(child, lexer, module, builder);
-                break;
-            case NODE_FUNCTION_ARGUMENT:
-                visit_node_function_argument(child, lexer, module, builder);
-                break;
-            case NODE_ASSIGNMENT:
-                visit_node_assignment(child, lexer, module, builder);
-                break;
-            case NODE_IDENTIFIER:
-                lhs = visit_node_identifier(child, lexer, module, builder);
-                continue;
-            case NODE_TYPE:
-                visit_node_type(child, lexer, module, builder);
-                break;
-            case NODE_BLOCK_STATEMENT:
-                break;
-            case NODE_RETURN_STATEMENT:
-                // visit_node_return_statement(child, lexer, module, builder);
-                break;
-            case NODE_OPERATOR:
-                Node* rhs;
-                rhs = node->children[i + 1];
-
-                LLVMValueRef value2 = visit_node_expression(rhs, lexer, module, builder);
-                visit_node_operator(child, lexer, module, builder, lhs, value2);
-                break;
-            case NODE_EXPRESSION:
-                visit_node_expression(child, lexer, module, builder);
-                break;
-            case NODE_IF_STATEMENT:
-                // TODO:
-                break;
-            case NODE_NUMERIC_LITERAL:
-                visit_node_numeric_literal(child, lexer, module, builder);
-                break;
-            case NODE_FLOAT_LITERAL:
-                visit_node_float_literal(child, lexer, module, builder);
-                break;
-            case NODE_CALL_EXPRESSION:
-                visit_node_call_expression(child, lexer, module, builder);
-                break;
-            case NODE_STRING_LITERAL:
-                visit_node_string_literal(child, lexer, module, builder);
-                break;
-            case NODE_TRUE_LITERAL:
-                visit_node_true_literal(child, lexer, module, builder);
-                break;
-            case NODE_FALSE_LITERAL:
-                visit_node_false_literal(child, lexer, module, builder);
-                break;
-            case NODE_NULL_LITERAL:
-                visit_node_null_literal(child, lexer, module, builder);
-                break;
-            case NODE_COMMENT:
-                break;
-            default:
-                printf("Unknown node type: %s\n", node_type_to_string(node->type));
-                break;
-        }
+    switch (node->type) {
+        case NODE_PROGRAM:
+            visit_node_program(node, lexer, module, builder);
+            break;
+        case NODE_VARIABLE_DECLARATION:
+            visit_node_variable_declaration(node, lexer, module, builder);
+            break;
+        case NODE_FUNCTION_DECLARATION:
+            visit_node_function_declaration(node, lexer, module, builder);
+            break;
+        case NODE_FUNCTION_ARGUMENT:
+            visit_node_function_argument(node, lexer, module, builder);
+            break;
+        case NODE_ASSIGNMENT:
+            return visit_node_assignment(node, lexer, module, builder);
+            break;
+        case NODE_IDENTIFIER:
+            return visit_node_identifier(node, lexer, module, builder);
+            break;
+        case NODE_TYPE:
+            visit_node_type(node, lexer, module, builder);
+            break;
+        case NODE_BLOCK_STATEMENT:
+            break;
+        case NODE_RETURN_STATEMENT:
+            // visit_node_return_statement(node, lexer, module, builder);
+            break;
+        case NODE_OPERATOR:
+            break;
+        case NODE_EXPRESSION:
+            return visit_node_expression(node, lexer, module, builder);
+            break;
+        case NODE_IF_STATEMENT:
+            // TODO:
+            break;
+        case NODE_NUMERIC_LITERAL:
+            return visit_node_numeric_literal(node, lexer, module, builder);
+            break;
+        case NODE_FLOAT_LITERAL:
+            return visit_node_float_literal(node, lexer, module, builder);
+            break;
+        case NODE_CALL_EXPRESSION:
+            return visit_node_call_expression(node, lexer, module, builder);
+            break;
+        case NODE_STRING_LITERAL:
+            visit_node_string_literal(node, lexer, module, builder);
+            break;
+        case NODE_TRUE_LITERAL:
+            return visit_node_true_literal(node, lexer, module, builder);
+            break;
+        case NODE_FALSE_LITERAL:
+            return visit_node_false_literal(node, lexer, module, builder);
+            break;
+        case NODE_NULL_LITERAL:
+            return visit_node_null_literal(node, lexer, module, builder);
+            break;
+        case NODE_COMMENT:
+            break;
+        default:
+            printf("Unknown node type: %s\n", node_type_to_string(node->type));
+            break;
     }
 }
 
@@ -153,32 +148,18 @@ void visit_node_variable_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
     LLVMTypeRef type;
     char* var_name = NULL;
 
-    for (size_t i = 0; i < node->num_children; i++) {
-        Node* child = node->children[i];
-        if (child->type == NODE_IDENTIFIER) {
-            var_name = child->data;
-            Node* type_node = child->children[0];
-            for (size_t j = 0; j < TYPE_COUNT; j++) {
-                if (strcmp(type_node->data, types[j]) == 0) {
-                    type = llvm_types[j];
-                    break;
-                }
-            }
+    var_name = node->data;
+    for (size_t i = 0; i < TYPE_COUNT; i++) {
+        if (strcmp(node->children[0]->data, types[i]) == 0) {
+            type = llvm_types[i];
+            break;
         }
     }
 
     if (var_name != NULL) {
-        LLVMValueRef var = LLVMBuildAlloca(builder, type, var_name);
-        for (size_t i = 0; i < node->num_children; i++) {
-            Node* child = node->children[i];
-            if (child->type == NODE_EXPRESSION) {
-                visit_node(child, lexer, module, builder);
-                LLVMValueRef value = LLVMBuildLoad2(builder, type, var, var_name);
-                LLVMBuildStore(builder, value, var);
-            }
-        }
-        LLVMValueRef value = LLVMBuildLoad2(builder, type, var, var_name);
-        LLVMDumpValue(value);
+        // Allocate variable
+        LLVMValueRef variable = LLVMBuildAlloca(builder, type, var_name);
+        LLVMSetValueName2(variable, var_name, strlen(var_name));
     }
 }
 
@@ -296,6 +277,8 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_RETURN_STATEMENT) {
             return_value = visit_node_return_statement(node->children[i], lexer, module, block_builder, return_type);
+        } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
+            visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
         } else {
             visit_node(node->children[i], lexer, module, block_builder);
         }

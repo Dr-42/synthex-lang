@@ -5,7 +5,7 @@
 
 void ast_to_llvm(AST* ast, Lexer* lexer);
 
-void visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
+LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_program(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_variable_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
