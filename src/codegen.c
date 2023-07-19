@@ -41,12 +41,11 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
 
     visit_node(ast->root, lexer, module, builder);
 
-    // define main function
-    LLVMTypeRef main_type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, 0);
-
     char* error = NULL;
     LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
     LLVMDisposeMessage(error);
+    // set target triple for module
+    LLVMSetTarget(module, LLVMGetDefaultTargetTriple());
 
     // Assuming you have an LLVM module `module` and a function named "add" in it
     LLVMExecutionEngineRef engine;
