@@ -17,6 +17,11 @@ LLVMTypeRef functionReturns[100] = {0};
 const char* functionNames[100] = {0};
 size_t functionCount = 0;
 
+LLVMValueRef current_scope_variables[100] = {0};
+LLVMTypeRef current_scope_variable_types[100] = {0};
+const char* current_scope_variable_names[100] = {0};
+size_t current_scope_variable_count = 0;
+
 void convert_all_types(LLVMContextRef ctx) {
     llvm_types = calloc(TYPE_COUNT, sizeof(LLVMTypeRef));
     llvm_types[0] = LLVMInt8TypeInContext(ctx);
@@ -88,7 +93,7 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             visit_node_function_argument(node, lexer, module, builder);
             break;
         case NODE_ASSIGNMENT:
-            return visit_node_assignment(node, lexer, module, builder);
+            visit_node_assignment(node, lexer, module, builder);
             break;
         case NODE_IDENTIFIER:
             return visit_node_identifier(node, lexer, module, builder);
@@ -159,7 +164,13 @@ void visit_node_variable_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
     if (var_name != NULL) {
         // Allocate variable
         LLVMValueRef variable = LLVMBuildAlloca(builder, type, var_name);
-        LLVMSetValueName2(variable, var_name, strlen(var_name));
+        //  Add variable to current scope
+        current_scope_variables[current_scope_variable_count] = variable;
+        current_scope_variable_names[current_scope_variable_count] = var_name;
+        current_scope_variable_types[current_scope_variable_count] = type;
+        current_scope_variable_count++;
+    } else {
+        printf("Error: Variable '%s' could not be declared\n", var_name);
     }
 }
 
@@ -211,6 +222,9 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
         functionNames[functionCount] = func_name;
         functionReturns[functionCount] = return_type;
         functionCount++;
+
+        current_scope_variable_count = 0;
+
         for (size_t i = 0; i < arg_count; i++) {
             LLVMValueRef arg = LLVMGetParam(func, i);
             LLVMSetValueName2(arg, arg_names[i], strlen(arg_names[i]));
@@ -235,8 +249,31 @@ void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module
     return;
 }
 
-LLVMValueRef visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
-    return NULL;
+void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    LLVMValueRef value = NULL;
+    LLVMValueRef variable = NULL;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_IDENTIFIER) {
+            variable = visit_node_identifier(child, lexer, module, builder);
+        } else if (child->type == NODE_EXPRESSION) {
+            value = visit_node_expression(child, lexer, module, builder);
+        }
+    }
+
+    if (variable != NULL && value != NULL) {
+        LLVMTypeRef variable_type = LLVMTypeOf(variable);
+        LLVMTypeRef value_type = LLVMTypeOf(value);
+        // if (variable_type == value_type) {
+        LLVMBuildStore(builder, value, variable);
+        //} else {
+        // printf("Error: Variable type does not match value type\n");
+        // printf("Variable type: %s, Value type: %s\n", LLVMPrintTypeToString(variable_type), LLVMPrintTypeToString(value_type));
+        //}
+    } else {
+        printf("Error: Variable '%s' could not be assigned\n", node->data);
+    }
 }
 
 LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
@@ -253,6 +290,16 @@ LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef modul
         if (strcmp(param_name, identifier) == 0) {
             value = param;
             break;
+        }
+    }
+
+    // Check if variable is in the current scope
+    if (value == NULL) {
+        for (int i = 0; i < current_scope_variable_count; i++) {
+            if (strcmp(current_scope_variable_names[i], identifier) == 0) {
+                value = current_scope_variables[i];
+                break;
+            }
         }
     }
 
@@ -354,6 +401,7 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                 break;
         }
     }
+    return lhs;
 }
 
 LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
