@@ -273,7 +273,8 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
             if (child->type == NODE_IDENTIFIER) {
                 declaration_node->data = child->data;
                 declaration_node->type = NODE_VARIABLE_DECLARATION;
-                node_add_child(declaration_node, child->children[0]);
+                Node* type_node = create_node(NODE_TYPE, child->children[0]->data);
+                node_add_child(declaration_node, type_node);
             }
         }
         visit_node_variable_declaration(declaration_node, lexer, module, builder);
