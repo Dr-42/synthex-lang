@@ -376,14 +376,42 @@ LLVMValueRef visit_node_return_statement(Node* node, Lexer* lexer, LLVMModuleRef
 
 LLVMValueRef visit_node_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2) {
     const char* op = node->data;
-    if (strcmp(op, "+") == 0) {
-        return LLVMBuildAdd(builder, value1, value2, "addtmp");
-    } else if (strcmp(op, "-") == 0) {
-        return LLVMBuildSub(builder, value1, value2, "subtmp");
-    } else if (strcmp(op, "*") == 0) {
-        return LLVMBuildMul(builder, value1, value2, "multmp");
+
+    if (value1 == NULL || value2 == NULL) {
+        printf("Error: Operator '%s' could not be applied\n", op);
+        return NULL;
+    }
+
+    LLVMTypeRef value1_type = LLVMTypeOf(value1);
+    LLVMTypeRef value2_type = LLVMTypeOf(value2);
+
+    if (LLVMGetTypeKind(value1_type) != LLVMGetTypeKind(value2_type)) {
+        printf("Error: Operator '%s' could not be applied to different types\n", op);
+        return NULL;
+    }
+
+    if (LLVMGetTypeKind(value1_type) == LLVMIntegerTypeKind) {
+        if (strcmp(op, "+") == 0) {
+            return LLVMBuildAdd(builder, value1, value2, "addtmp");
+        } else if (strcmp(op, "-") == 0) {
+            return LLVMBuildSub(builder, value1, value2, "subtmp");
+        } else if (strcmp(op, "*") == 0) {
+            return LLVMBuildMul(builder, value1, value2, "multmp");
+        } else {
+            printf("Error: Unsupported operator '%s'\n", op);
+        }
+    } else if (LLVMGetTypeKind(value1_type) == LLVMFloatTypeKind) {
+        if (strcmp(op, "+") == 0) {
+            return LLVMBuildFAdd(builder, value1, value2, "addtmp");
+        } else if (strcmp(op, "-") == 0) {
+            return LLVMBuildFSub(builder, value1, value2, "subtmp");
+        } else if (strcmp(op, "*") == 0) {
+            return LLVMBuildFMul(builder, value1, value2, "multmp");
+        } else {
+            printf("Error: Unsupported operator '%s'\n", op);
+        }
     } else {
-        printf("Error: Unsupported operator '%s'\n", op);
+        printf("Error: Unsupported type %s\n", LLVMPrintTypeToString(value1_type));
     }
 
     return NULL;
