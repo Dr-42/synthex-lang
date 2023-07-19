@@ -96,7 +96,7 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             visit_node_assignment(node, lexer, module, builder);
             break;
         case NODE_IDENTIFIER:
-            return visit_node_identifier(node, lexer, module, builder);
+            return visit_node_identifier(node, lexer, module, builder, true);
             break;
         case NODE_TYPE:
             visit_node_type(node, lexer, module, builder);
@@ -256,7 +256,7 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
         if (child->type == NODE_IDENTIFIER) {
-            variable = visit_node_identifier(child, lexer, module, builder);
+            variable = visit_node_identifier(child, lexer, module, builder, false);
         } else if (child->type == NODE_EXPRESSION) {
             value = visit_node_expression(child, lexer, module, builder);
         }
@@ -265,18 +265,13 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
     if (variable != NULL && value != NULL) {
         LLVMTypeRef variable_type = LLVMTypeOf(variable);
         LLVMTypeRef value_type = LLVMTypeOf(value);
-        // if (variable_type == value_type) {
         LLVMBuildStore(builder, value, variable);
-        //} else {
-        // printf("Error: Variable type does not match value type\n");
-        // printf("Variable type: %s, Value type: %s\n", LLVMPrintTypeToString(variable_type), LLVMPrintTypeToString(value_type));
-        //}
     } else {
         printf("Error: Variable '%s' could not be assigned\n", node->data);
     }
 }
 
-LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, bool deref) {
     const char* identifier = node->data;
     LLVMBasicBlockRef currentBlock = LLVMGetInsertBlock(builder);
     LLVMValueRef currentFunction = LLVMGetBasicBlockParent(currentBlock);
@@ -298,6 +293,9 @@ LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef modul
         for (int i = 0; i < current_scope_variable_count; i++) {
             if (strcmp(current_scope_variable_names[i], identifier) == 0) {
                 value = current_scope_variables[i];
+                if (deref) {
+                    value = LLVMBuildLoad2(builder, current_scope_variable_types[i], value, identifier);
+                }
                 break;
             }
         }
@@ -342,7 +340,7 @@ LLVMValueRef visit_node_return_statement(Node* node, Lexer* lexer, LLVMModuleRef
         if (node->children[i]->type == NODE_EXPRESSION) {
             value = visit_node_expression(node->children[i], lexer, module, builder);
         } else if (node->children[i]->type == NODE_IDENTIFIER) {
-            value = visit_node_identifier(node->children[i], lexer, module, builder);
+            value = visit_node_identifier(node->children[i], lexer, module, builder, true);
         }
     }
     return value;
@@ -369,13 +367,13 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
         Node* child = node->children[i];
         switch (child->type) {
             case NODE_IDENTIFIER:
-                lhs = visit_node_identifier(child, lexer, module, builder);
+                lhs = visit_node_identifier(child, lexer, module, builder, true);
                 continue;
             case NODE_OPERATOR:
                 Node* rhs;
                 rhs = node->children[i + 1];
 
-                LLVMValueRef value2 = visit_node_identifier(rhs, lexer, module, builder);
+                LLVMValueRef value2 = visit_node_identifier(rhs, lexer, module, builder, true);
                 return visit_node_operator(child, lexer, module, builder, lhs, value2);
                 break;
             case NODE_CALL_EXPRESSION:
