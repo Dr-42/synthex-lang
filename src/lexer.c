@@ -229,7 +229,7 @@ Token *lexer_next_token(Lexer *lexer) {
 
         if (isalpha(c) || c == '_') {
             size_t start = lexer->index;
-            while (isalpha(lexer->contents[lexer->index])) {
+            while (isalpha(lexer->contents[lexer->index]) || isdigit(lexer->contents[lexer->index]) || lexer->contents[lexer->index] == '_' || lexer->contents[lexer->index] == '-') {
                 lexer->index++;
             }
             return lexer_create_token(lexer, TOKEN_IDENTIFIER, start, lexer->index);

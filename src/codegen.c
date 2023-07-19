@@ -400,28 +400,28 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
             case NODE_OPERATOR:
                 Node* rhs;
                 rhs = node->children[i + 1];
-
                 LLVMValueRef value2 = visit_node(rhs, lexer, module, builder);
-                return visit_node_operator(child, lexer, module, builder, lhs, value2);
-                break;
+                lhs = visit_node_operator(child, lexer, module, builder, lhs, value2);
+                i++;
+                continue;
             case NODE_CALL_EXPRESSION:
-                return visit_node_call_expression(child, lexer, module, builder);
-                break;
+                lhs = visit_node_call_expression(child, lexer, module, builder);
+                continue;
             case NODE_NUMERIC_LITERAL:
-                return visit_node_numeric_literal(child, lexer, module, builder);
-                break;
+                lhs = visit_node_numeric_literal(child, lexer, module, builder);
+                continue;
             case NODE_FLOAT_LITERAL:
-                return visit_node_float_literal(child, lexer, module, builder);
-                break;
+                lhs = visit_node_float_literal(child, lexer, module, builder);
+                continue;
             case NODE_TRUE_LITERAL:
-                return visit_node_true_literal(child, lexer, module, builder);
-                break;
+                lhs = visit_node_true_literal(child, lexer, module, builder);
+                continue;
             case NODE_FALSE_LITERAL:
-                return visit_node_false_literal(child, lexer, module, builder);
-                break;
+                lhs = visit_node_false_literal(child, lexer, module, builder);
+                continue;
             case NODE_NULL_LITERAL:
-                return visit_node_null_literal(child, lexer, module, builder);
-                break;
+                lhs = visit_node_null_literal(child, lexer, module, builder);
+                continue;
             default:
                 printf("Unknown expression node type: %s\n", node_type_to_string(node->type));
                 break;
