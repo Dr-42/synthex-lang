@@ -373,7 +373,7 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                 Node* rhs;
                 rhs = node->children[i + 1];
 
-                LLVMValueRef value2 = visit_node_identifier(rhs, lexer, module, builder, true);
+                LLVMValueRef value2 = visit_node(rhs, lexer, module, builder);
                 return visit_node_operator(child, lexer, module, builder, lhs, value2);
                 break;
             case NODE_CALL_EXPRESSION:
