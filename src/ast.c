@@ -83,6 +83,8 @@ Node* ast_parse_statement(Lexer* lexer) {
     if (token->type == TOKEN_KEYWORD) {
         if (strcmp(token->value, keywords[KEYWORD_FNC]) == 0) {
             statement = ast_parse_function(lexer);
+        } else if (strcmp(token->value, keywords[KEYWORD_IF]) == 0) {
+            statement = ast_parse_if_statement(lexer, false);
         } else if (strcmp(token->value, keywords[KEYWORD_RET]) == 0) {
             statement = create_node(NODE_RETURN_STATEMENT, NULL);
             lexer_advance_cursor(lexer, 1);
@@ -210,6 +212,60 @@ Node* ast_parse_function_argument(Lexer* lexer) {
         assert(false);
     }
     return argument;
+}
+
+Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
+    Token* token = lexer_peek_token(lexer, 0);
+    assert(token->type == TOKEN_KEYWORD);
+    if (is_elif) {
+        assert(strcmp(token->value, keywords[KEYWORD_ELIF]) == 0);
+    } else {
+        assert(strcmp(token->value, keywords[KEYWORD_IF]) == 0);
+    }
+    Node* if_statement;
+    if (is_elif) {
+        if_statement = create_node(NODE_ELIF_STATEMENT, NULL);
+    } else {
+        if_statement = create_node(NODE_IF_STATEMENT, NULL);
+    }
+    lexer_advance_cursor(lexer, 1);
+    Node* expression = ast_parse_expression(lexer);
+    if (strcmp(lexer_peek_token(lexer, 0)->value, ")") == 0) {
+        lexer_advance_cursor(lexer, 1);
+    }
+    node_add_child(if_statement, expression);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
+        fprintf(stderr, "Expected opening brace after if statement expression, got %s\n", token->value);
+        assert(false);
+    }
+
+    Node* block = ast_parse_block(lexer);
+    node_add_child(if_statement, block);
+    lexer_advance_cursor(lexer, 1);
+
+    token = lexer_peek_token(lexer, 0);
+
+    if (token->type == TOKEN_KEYWORD && strcmp(token->value, keywords[KEYWORD_ELIF]) == 0) {
+        Node* elif_statement = ast_parse_if_statement(lexer, true);
+        node_add_child(if_statement, elif_statement);
+    }
+
+    if (token->type == TOKEN_KEYWORD && strcmp(token->value, keywords[KEYWORD_ELSE]) == 0) {
+        lexer_advance_cursor(lexer, 1);
+        token = lexer_peek_token(lexer, 0);
+        if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
+            fprintf(stderr, "Expected opening brace after else keyword, got %s\n", token->value);
+            assert(false);
+        }
+        Node* else_block = ast_parse_block(lexer);
+        Node* else_statement = create_node(NODE_ELSE_STATEMENT, NULL);
+        node_add_child(if_statement, else_statement);
+        node_add_child(else_statement, else_block);
+        lexer_advance_cursor(lexer, 1);
+    }
+
+    return if_statement;
 }
 
 Node* ast_parse_block(Lexer* lexer) {
