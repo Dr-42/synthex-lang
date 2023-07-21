@@ -252,6 +252,60 @@ void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module
     return;
 }
 
+LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+    LLVMContextRef ctx = LLVMGetModuleContext(module);
+    LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(ctx, func, "if");
+    LLVMBuilderRef block_builder = LLVMCreateBuilder();
+    LLVMPositionBuilderAtEnd(block_builder, block);
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        if (node->children[i]->type == NODE_RETURN_STATEMENT) {
+            LLVMValueRef return_value = visit_node_return_statement(node->children[i], lexer, module, block_builder, return_type);
+            LLVMBuildRet(block_builder, return_value);
+        } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
+            visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
+        } else {
+            visit_node(node->children[i], lexer, module, block_builder);
+        }
+    }
+
+    return block;
+}
+
+void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+    LLVMValueRef condition = NULL;
+    LLVMBasicBlockRef if_block = NULL;
+    LLVMBasicBlockRef else_block = NULL;
+    LLVMBasicBlockRef merge_block = NULL;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        if (node->children[i]->type == NODE_EXPRESSION) {
+            condition = visit_node_expression(node->children[i], lexer, module, builder);
+        } else if (node->children[i]->type == NODE_BLOCK_STATEMENT) {
+            if_block = create_if_block(node->children[i], lexer, module, builder, func, return_type);
+        } else if (node->children[i]->type == NODE_ELSE_STATEMENT) {
+            else_block = create_if_block(node->children[i]->children[0], lexer, module, builder, func, return_type);
+        }
+    }
+
+    if (condition != NULL && if_block != NULL) {
+        merge_block = LLVMAppendBasicBlockInContext(LLVMGetModuleContext(module), func, "merge");
+        // Position builder at end of the function block
+        LLVMPositionBuilderAtEnd(builder, LLVMGetInsertBlock(builder));
+        LLVMBuildCondBr(builder, condition, if_block, else_block);
+        // Position builder at end of the if block to add the merge block
+        LLVMPositionBuilderAtEnd(builder, if_block);
+        LLVMBuildBr(builder, merge_block);
+        // Position builder at end of the else block to add the merge block
+        LLVMPositionBuilderAtEnd(builder, else_block);
+        LLVMBuildBr(builder, merge_block);
+
+        LLVMPositionBuilderAtEnd(builder, merge_block);
+    }
+
+    return;
+}
+
 void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef value = NULL;
     LLVMValueRef variable = NULL;
@@ -296,6 +350,10 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
     if (variable != NULL && value != NULL) {
         LLVMTypeRef variable_type = LLVMTypeOf(variable);
         LLVMTypeRef value_type = LLVMTypeOf(value);
+
+        // printf("Variable type: %s\n", LLVMPrintTypeToString(variable_type));
+        // printf("Value type: %s\n", LLVMPrintTypeToString(value_type));
+
         LLVMBuildStore(builder, value, variable);
     } else {
         printf("Error: Variable '%s' could not be assigned\n", node->data);
@@ -355,6 +413,8 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
             return_value = visit_node_return_statement(node->children[i], lexer, module, block_builder, return_type);
         } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
             visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
+        } else if (node->children[i]->type == NODE_IF_STATEMENT) {
+            visit_node_if_statement(node->children[i], lexer, module, block_builder, func, return_type);
         } else {
             visit_node(node->children[i], lexer, module, block_builder);
         }
@@ -400,6 +460,18 @@ LLVMValueRef visit_node_operator(Node* node, Lexer* lexer, LLVMModuleRef module,
             return LLVMBuildSub(builder, value1, value2, "subtmp");
         } else if (strcmp(op, "*") == 0) {
             return LLVMBuildMul(builder, value1, value2, "multmp");
+        } else if (strcmp(op, "==") == 0) {
+            return LLVMBuildICmp(builder, LLVMIntEQ, value1, value2, "eqtmp");
+        } else if (strcmp(op, "!-") == 0) {
+            return LLVMBuildICmp(builder, LLVMIntNE, value1, value2, "neqtmp");
+        } else if (strcmp(op, "<") == 0) {
+            return LLVMBuildICmp(builder, LLVMIntSLT, value1, value2, "lttmp");
+        } else if (strcmp(op, ">") == 0) {
+            return LLVMBuildICmp(builder, LLVMIntSGT, value1, value2, "gttmp");
+        } else if (strcmp(op, "<=") == 0) {
+            return LLVMBuildICmp(builder, LLVMIntSLE, value1, value2, "letmp");
+        } else if (strcmp(op, ">=") == 0) {
+            return LLVMBuildICmp(builder, LLVMIntSGE, value1, value2, "getmp");
         } else {
             printf("Error: Unsupported operator '%s'\n", op);
         }
@@ -425,6 +497,9 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
         switch (child->type) {
+            case NODE_EXPRESSION:
+                lhs = visit_node_expression(child, lexer, module, builder);
+                continue;
             case NODE_IDENTIFIER:
                 lhs = visit_node_identifier(child, lexer, module, builder, true);
                 continue;
