@@ -249,9 +249,14 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
     token = lexer_peek_token(lexer, 0);
 
     if (token->type == TOKEN_KEYWORD && !is_elif && strcmp(token->value, keywords[KEYWORD_ELIF]) == 0) {
-        Node* elif_statement = ast_parse_if_statement(lexer, true);
-        node_add_child(if_statement, elif_statement);
-        token = lexer_peek_token(lexer, 0);
+        while (true) {
+            Node* elif_statement = ast_parse_if_statement(lexer, true);
+            node_add_child(if_statement, elif_statement);
+            token = lexer_peek_token(lexer, 0);
+            if (token->type != TOKEN_KEYWORD || strcmp(token->value, keywords[KEYWORD_ELIF]) != 0) {
+                break;
+            }
+        }
     }
 
     if (token->type == TOKEN_KEYWORD && !is_elif && strcmp(token->value, keywords[KEYWORD_ELSE]) == 0) {
