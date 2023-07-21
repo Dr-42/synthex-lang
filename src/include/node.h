@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 typedef enum {
@@ -40,5 +41,5 @@ Node* create_node(NodeType type, void* data);
 void destroy_node(Node* node);
 void node_add_child(Node* parent, Node* child);
 
-void print_node(Node* node, int indent);
+void print_node(Node* node, bool* indents, int indent);
 char* node_type_to_string(NodeType type);

@@ -1,6 +1,13 @@
 #include "node.h"
 
+#include <locale.h>
 #include <stdio.h>
+#include <wchar.h>
+
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 
 Node* create_node(NodeType type, void* data) {
     Node* node = calloc(1, sizeof(Node));
@@ -25,17 +32,43 @@ void node_add_child(Node* parent, Node* child) {
     parent->children[parent->num_children - 1] = child;
 }
 
+/*
 void print_node(Node* node, int indent) {
-    for (int i = 0; i < indent; i++) {
-        printf("  ");
+    for (int i = 0; i < indent - 1; i++) {
+        printf("%s%s%s", ANSI_COLOR_GREEN, "| ", ANSI_COLOR_RESET);
     }
-    printf("%s", node_type_to_string(node->type));
+    if (indent > 0) {
+        printf("%s%s%s", ANSI_COLOR_GREEN, "|_", ANSI_COLOR_RESET);
+    }
+    printf("%s%s%s", ANSI_COLOR_MAGENTA, node_type_to_string(node->type), ANSI_COLOR_RESET);
     if (node->data != NULL) {
-        printf(" %s", (char*)node->data);
+        printf("%s %s%s", ANSI_COLOR_RED, (char*)node->data, ANSI_COLOR_RESET);
     }
     printf("\n");
     for (size_t i = 0; i < node->num_children; i++) {
         print_node(node->children[i], indent + 1);
+    }
+}
+*/
+void print_node(Node* node, bool* indents, int indent) {
+    for (int i = 0; i < indent - 1; i++) {
+        printf("%s%s%s", ANSI_COLOR_GREEN, indents[i] ? "| " : "  ", ANSI_COLOR_RESET);
+    }
+    if (indent > 0) {
+        printf("%s%s%s", ANSI_COLOR_GREEN, "|_", ANSI_COLOR_RESET);
+    }
+    printf("%s%s%s", ANSI_COLOR_MAGENTA, node_type_to_string(node->type), ANSI_COLOR_RESET);
+    if (node->data != NULL) {
+        printf("%s %s%s", ANSI_COLOR_RED, (char*)node->data, ANSI_COLOR_RESET);
+    }
+    printf("\n");
+    for (size_t i = 0; i < node->num_children; i++) {
+        if (i < node->num_children - 1) {
+            indents[indent] = true;
+        } else {
+            indents[indent] = false;
+        }
+        print_node(node->children[i], indents, indent + 1);
     }
 }
 

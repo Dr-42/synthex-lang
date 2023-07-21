@@ -37,7 +37,9 @@ void ast_destroy(AST* ast) {
 }
 
 void ast_print(AST* ast) {
-    print_node(ast->root, 0);
+    bool* indents = malloc(100 * sizeof(bool));  // Assume max depth of 100
+    print_node(ast->root, indents, 0);
+    free(indents);
 }
 
 void ast_print_declarations() {
@@ -246,12 +248,13 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
 
     token = lexer_peek_token(lexer, 0);
 
-    if (token->type == TOKEN_KEYWORD && strcmp(token->value, keywords[KEYWORD_ELIF]) == 0) {
+    if (token->type == TOKEN_KEYWORD && !is_elif && strcmp(token->value, keywords[KEYWORD_ELIF]) == 0) {
         Node* elif_statement = ast_parse_if_statement(lexer, true);
         node_add_child(if_statement, elif_statement);
+        token = lexer_peek_token(lexer, 0);
     }
 
-    if (token->type == TOKEN_KEYWORD && strcmp(token->value, keywords[KEYWORD_ELSE]) == 0) {
+    if (token->type == TOKEN_KEYWORD && !is_elif && strcmp(token->value, keywords[KEYWORD_ELSE]) == 0) {
         lexer_advance_cursor(lexer, 1);
         token = lexer_peek_token(lexer, 0);
         if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
