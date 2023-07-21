@@ -16,6 +16,7 @@ LLVMTypeRef* llvm_types;
 LLVMTypeRef functionReturns[100] = {0};
 const char* functionNames[100] = {0};
 size_t functionCount = 0;
+LLVMValueRef current_function = NULL;
 
 LLVMValueRef current_scope_variables[100] = {0};
 LLVMTypeRef current_scope_variable_types[100] = {0};
@@ -230,6 +231,8 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
             LLVMSetValueName2(arg, arg_names[i], strlen(arg_names[i]));
         }
 
+        current_function = func;
+
         for (size_t i = 0; i < node->num_children; i++) {
             Node* child = node->children[i];
             if (child->type == NODE_BLOCK_STATEMENT) {
@@ -301,8 +304,8 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
 
 LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, bool deref) {
     const char* identifier = node->data;
-    LLVMBasicBlockRef currentBlock = LLVMGetInsertBlock(builder);
-    LLVMValueRef currentFunction = LLVMGetBasicBlockParent(currentBlock);
+    // LLVMBasicBlockRef currentBlock = LLVMGetInsertBlock(builder);
+    LLVMValueRef currentFunction = current_function;
     unsigned int paramCount = LLVMCountParams(currentFunction);
 
     LLVMValueRef value = NULL;
