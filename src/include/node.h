@@ -35,6 +35,7 @@ typedef struct Node {
     NodeType type;
     void* data;
     Node** children;
+    Node* parent;
     size_t num_children;
 } Node;
 

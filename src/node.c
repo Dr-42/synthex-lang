@@ -30,6 +30,7 @@ void node_add_child(Node* parent, Node* child) {
     parent->num_children++;
     parent->children = realloc(parent->children, parent->num_children * sizeof(Node*));
     parent->children[parent->num_children - 1] = child;
+    child->parent = parent;
 }
 
 /*
