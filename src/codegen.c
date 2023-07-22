@@ -252,9 +252,9 @@ void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module
     return;
 }
 
-LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type, const char* name) {
     LLVMContextRef ctx = LLVMGetModuleContext(module);
-    LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(ctx, func, "if");
+    LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(ctx, func, name);
     LLVMBuilderRef block_builder = LLVMCreateBuilder();
     LLVMPositionBuilderAtEnd(block_builder, block);
 
@@ -278,28 +278,78 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
     LLVMBasicBlockRef else_block = NULL;
     LLVMBasicBlockRef merge_block = NULL;
 
+    LLVMBasicBlockRef elif_blocks[100] = {0};
+    LLVMBasicBlockRef elif_cond_blocks[100] = {0};
+    LLVMValueRef elif_conditions[100] = {0};
+    size_t elif_count = 0;
+
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
             condition = visit_node_expression(node->children[i], lexer, module, builder);
         } else if (node->children[i]->type == NODE_BLOCK_STATEMENT) {
-            if_block = create_if_block(node->children[i], lexer, module, builder, func, return_type);
+            if_block = create_if_block(node->children[i], lexer, module, builder, func, return_type, "if");
         } else if (node->children[i]->type == NODE_ELSE_STATEMENT) {
-            else_block = create_if_block(node->children[i]->children[0], lexer, module, builder, func, return_type);
+            else_block = create_if_block(node->children[i]->children[0], lexer, module, builder, func, return_type, "else");
+        } else if (node->children[i]->type == NODE_ELIF_STATEMENT) {
+            Node* elif_node = node->children[i];
+            for (size_t j = 0; j < elif_node->num_children; j++) {
+                if (elif_node->children[j]->type == NODE_EXPRESSION) {
+                    elif_conditions[elif_count] = visit_node_expression(elif_node->children[j], lexer, module, builder);
+                } else if (elif_node->children[j]->type == NODE_BLOCK_STATEMENT) {
+                    elif_blocks[elif_count] = create_if_block(elif_node->children[j], lexer, module, builder, func, return_type, "elif");
+                }
+            }
+            elif_count++;
         }
     }
 
     if (condition != NULL && if_block != NULL) {
         merge_block = LLVMAppendBasicBlockInContext(LLVMGetModuleContext(module), func, "merge");
+
+        if (else_block == NULL) {
+            else_block = merge_block;
+        }
+
+        for (size_t i = 0; i < elif_count; i++) {
+            elif_cond_blocks[i] = LLVMCreateBasicBlockInContext(LLVMGetModuleContext(module), "elif_cond");
+        }
+
         // Position builder at end of the function block
         LLVMPositionBuilderAtEnd(builder, LLVMGetInsertBlock(builder));
-        LLVMBuildCondBr(builder, condition, if_block, else_block);
+        if (elif_count > 0) {
+            for (size_t i = 0; i < elif_count; i++) {
+                if (i == 0) {
+                    LLVMBuildCondBr(builder, condition, if_block, elif_cond_blocks[i]);
+                } else {
+                    // LLVMBuildCondBr(builder, elif_conditions[i], elif_blocks[i], elif_cond_blocks[i]);
+                }
+                LLVMAppendExistingBasicBlock(func, elif_cond_blocks[i]);
+                LLVMPositionBuilderAtEnd(builder, elif_cond_blocks[i]);
+                if (i == elif_count - 1) {
+                    LLVMBuildCondBr(builder, elif_conditions[i], elif_blocks[i], else_block);
+                } else {
+                    LLVMBuildCondBr(builder, elif_conditions[i], elif_blocks[i], elif_cond_blocks[i + 1]);
+                }
+            }
+        } else {
+            LLVMBuildCondBr(builder, condition, if_block, else_block);
+        }
         // Position builder at end of the if block to add the merge block
         LLVMPositionBuilderAtEnd(builder, if_block);
         LLVMBuildBr(builder, merge_block);
-        // Position builder at end of the else block to add the merge block
-        LLVMPositionBuilderAtEnd(builder, else_block);
-        LLVMBuildBr(builder, merge_block);
 
+        if (elif_count > 0) {
+            for (size_t i = 0; i < elif_count; i++) {
+                LLVMPositionBuilderAtEnd(builder, elif_blocks[i]);
+                LLVMBuildBr(builder, merge_block);
+            }
+        }
+
+        if (else_block != NULL) {
+            // Position builder at end of the else block to add the merge block
+            LLVMPositionBuilderAtEnd(builder, else_block);
+            LLVMBuildBr(builder, merge_block);
+        }
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
 
