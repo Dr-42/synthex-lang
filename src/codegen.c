@@ -320,8 +320,6 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
             for (size_t i = 0; i < elif_count; i++) {
                 if (i == 0) {
                     LLVMBuildCondBr(builder, condition, if_block, elif_cond_blocks[i]);
-                } else {
-                    // LLVMBuildCondBr(builder, elif_conditions[i], elif_blocks[i], elif_cond_blocks[i]);
                 }
                 LLVMAppendExistingBasicBlock(func, elif_cond_blocks[i]);
                 LLVMPositionBuilderAtEnd(builder, elif_cond_blocks[i]);
@@ -335,20 +333,27 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
             LLVMBuildCondBr(builder, condition, if_block, else_block);
         }
         // Position builder at end of the if block to add the merge block
-        LLVMPositionBuilderAtEnd(builder, if_block);
-        LLVMBuildBr(builder, merge_block);
+        if (LLVMGetBasicBlockTerminator(if_block) == NULL) {
+            LLVMPositionBuilderAtEnd(builder, if_block);
+            LLVMBuildBr(builder, merge_block);
+        }
 
         if (elif_count > 0) {
             for (size_t i = 0; i < elif_count; i++) {
-                LLVMPositionBuilderAtEnd(builder, elif_blocks[i]);
-                LLVMBuildBr(builder, merge_block);
+                // Check if the elif block has returned
+                if (LLVMGetBasicBlockTerminator(elif_blocks[i]) == NULL) {
+                    LLVMPositionBuilderAtEnd(builder, elif_blocks[i]);
+                    LLVMBuildBr(builder, merge_block);
+                }
             }
         }
 
         if (else_block != merge_block) {
             // Position builder at end of the else block to add the merge block
-            LLVMPositionBuilderAtEnd(builder, else_block);
-            LLVMBuildBr(builder, merge_block);
+            if (LLVMGetBasicBlockTerminator(else_block) == NULL) {
+                LLVMPositionBuilderAtEnd(builder, else_block);
+                LLVMBuildBr(builder, merge_block);
+            }
         }
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
