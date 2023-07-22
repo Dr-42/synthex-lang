@@ -345,7 +345,7 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
             }
         }
 
-        if (else_block != NULL) {
+        if (else_block != merge_block) {
             // Position builder at end of the else block to add the merge block
             LLVMPositionBuilderAtEnd(builder, else_block);
             LLVMBuildBr(builder, merge_block);
