@@ -105,7 +105,6 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
         case NODE_BLOCK_STATEMENT:
             break;
         case NODE_RETURN_STATEMENT:
-            // visit_node_return_statement(node, lexer, module, builder);
             break;
         case NODE_OPERATOR:
             break;
@@ -113,7 +112,6 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             return visit_node_expression(node, lexer, module, builder);
             break;
         case NODE_IF_STATEMENT:
-            // TODO:
             break;
         case NODE_NUMERIC_LITERAL:
             return visit_node_numeric_literal(node, lexer, module, builder);
@@ -264,6 +262,10 @@ LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module
             LLVMBuildRet(block_builder, return_value);
         } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
             visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
+        } else if (node->children[i]->type == NODE_IF_STATEMENT) {
+            visit_node_if_statement(node->children[i], lexer, module, block_builder, func, return_type);
+        } else if (node->children[i]->type == NODE_WHILE_STATEMENT) {
+            visit_node_while_statement(node->children[i], lexer, module, block_builder, func, return_type);
         } else {
             visit_node(node->children[i], lexer, module, block_builder);
         }
@@ -354,6 +356,37 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
                 LLVMPositionBuilderAtEnd(builder, else_block);
                 LLVMBuildBr(builder, merge_block);
             }
+        }
+        LLVMPositionBuilderAtEnd(builder, merge_block);
+    }
+
+    return;
+}
+
+void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+    LLVMValueRef condition = NULL;
+    LLVMBasicBlockRef while_block = NULL;
+    LLVMBasicBlockRef merge_block = NULL;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        if (node->children[i]->type == NODE_EXPRESSION) {
+            condition = visit_node_expression(node->children[i], lexer, module, builder);
+        } else if (node->children[i]->type == NODE_BLOCK_STATEMENT) {
+            while_block = create_if_block(node->children[i], lexer, module, builder, func, return_type, "while");
+        }
+    }
+
+    if (condition != NULL && while_block != NULL) {
+        merge_block = LLVMAppendBasicBlockInContext(LLVMGetModuleContext(module), func, "merge");
+
+        // Position builder at end of the function block
+        LLVMPositionBuilderAtEnd(builder, LLVMGetInsertBlock(builder));
+        LLVMBuildCondBr(builder, condition, while_block, merge_block);
+        // Position builder at end of the while block to add the merge block
+        if (LLVMGetBasicBlockTerminator(while_block) == NULL) {
+            LLVMPositionBuilderAtEnd(builder, while_block);
+            LLVMValueRef condition = visit_node_expression(node->children[0], lexer, module, builder);
+            LLVMBuildCondBr(builder, condition, while_block, merge_block);
         }
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
@@ -470,6 +503,8 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
             visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
         } else if (node->children[i]->type == NODE_IF_STATEMENT) {
             visit_node_if_statement(node->children[i], lexer, module, block_builder, func, return_type);
+        } else if (node->children[i]->type == NODE_WHILE_STATEMENT) {
+            visit_node_while_statement(node->children[i], lexer, module, block_builder, func, return_type);
         } else {
             visit_node(node->children[i], lexer, module, block_builder);
         }
