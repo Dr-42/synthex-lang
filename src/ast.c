@@ -87,6 +87,8 @@ Node* ast_parse_statement(Lexer* lexer) {
             statement = ast_parse_function(lexer);
         } else if (strcmp(token->value, keywords[KEYWORD_IF]) == 0) {
             statement = ast_parse_if_statement(lexer, false);
+        } else if (strcmp(token->value, keywords[KEYWORD_WHILE]) == 0) {
+            statement = ast_parse_while_statement(lexer);
         } else if (strcmp(token->value, keywords[KEYWORD_RET]) == 0) {
             statement = create_node(NODE_RETURN_STATEMENT, NULL);
             lexer_advance_cursor(lexer, 1);
@@ -276,6 +278,30 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
     return if_statement;
 }
 
+Node* ast_parse_while_statement(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    assert(token->type == TOKEN_KEYWORD);
+    assert(strcmp(token->value, keywords[KEYWORD_WHILE]) == 0);
+    Node* while_statement = create_node(NODE_WHILE_STATEMENT, NULL);
+    lexer_advance_cursor(lexer, 1);
+    Node* expression = ast_parse_expression(lexer);
+    if (strcmp(lexer_peek_token(lexer, 0)->value, ")") == 0) {
+        lexer_advance_cursor(lexer, 1);
+    }
+    node_add_child(while_statement, expression);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
+        fprintf(stderr, "Expected opening brace after if statement expression, got %s\n", token->value);
+        assert(false);
+    }
+
+    Node* block = ast_parse_block(lexer);
+    node_add_child(while_statement, block);
+    lexer_advance_cursor(lexer, 1);
+
+    return while_statement;
+}
+
 Node* ast_parse_block(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
@@ -297,7 +323,6 @@ Node* ast_parse_block(Lexer* lexer) {
             node_add_child(block, statement);
         }
     }
-    // assert(lexer_peek_token(lexer, 1)->type == TOKEN_PUNCTUATION && strcmp(lexer_peek_token(lexer, 0)->value, "}") == 0);
     return block;
 }
 

@@ -22,6 +22,7 @@ Node* ast_parse_program(Lexer* lexer);
 Node* ast_parse_statement(Lexer* lexer);
 Node* ast_parse_function(Lexer* lexer);
 Node* ast_parse_if_statement(Lexer* lexer, bool is_elif);
+Node* ast_parse_while_statement(Lexer* lexer);
 Node* ast_parse_function_argument(Lexer* lexer);
 Node* ast_parse_block(Lexer* lexer);
 Node* ast_parse_assignment(Lexer* lexer);

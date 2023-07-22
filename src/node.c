@@ -102,6 +102,8 @@ char* node_type_to_string(NodeType type) {
             return "NODE_ELIF_STATEMENT";
         case NODE_ELSE_STATEMENT:
             return "NODE_ELSE_STATEMENT";
+        case NODE_WHILE_STATEMENT:
+            return "NODE_WHILE_STATEMENT";
         case NODE_NUMERIC_LITERAL:
             return "NODE_NUMERIC_LITERAL";
         case NODE_FLOAT_LITERAL:
