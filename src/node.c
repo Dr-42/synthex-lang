@@ -4,10 +4,17 @@
 #include <stdio.h>
 #include <wchar.h>
 
+#ifndef NOCOLOR
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_RESET "\x1b[0m"
+#else
+#define ANSI_COLOR_RED ""
+#define ANSI_COLOR_GREEN ""
+#define ANSI_COLOR_MAGENTA ""
+#define ANSI_COLOR_RESET ""
+#endif
 
 Node* create_node(NodeType type, void* data) {
     Node* node = calloc(1, sizeof(Node));
