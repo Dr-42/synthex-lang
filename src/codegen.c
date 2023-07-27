@@ -114,6 +114,9 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
         case NODE_IF_STATEMENT:
             visit_node_if_statement(node, lexer, module, builder, current_function, functionReturns[functionCount - 1]);
             break;
+        case NODE_WHILE_STATEMENT:
+            visit_node_while_statement(node, lexer, module, builder, current_function, functionReturns[functionCount - 1]);
+            break;
         case NODE_NUMERIC_LITERAL:
             return visit_node_numeric_literal(node, lexer, module, builder);
             break;
@@ -263,10 +266,6 @@ LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module
             LLVMBuildRet(block_builder, return_value);
         } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
             visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
-        } else if (node->children[i]->type == NODE_IF_STATEMENT) {
-            visit_node_if_statement(node->children[i], lexer, module, block_builder, func, return_type);
-        } else if (node->children[i]->type == NODE_WHILE_STATEMENT) {
-            visit_node_while_statement(node->children[i], lexer, module, block_builder, func, return_type);
         } else {
             visit_node(node->children[i], lexer, module, block_builder);
         }
@@ -502,10 +501,6 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
             return_value = visit_node_return_statement(node->children[i], lexer, module, block_builder, return_type);
         } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
             visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
-        } else if (node->children[i]->type == NODE_IF_STATEMENT) {
-            visit_node_if_statement(node->children[i], lexer, module, block_builder, func, return_type);
-        } else if (node->children[i]->type == NODE_WHILE_STATEMENT) {
-            visit_node_while_statement(node->children[i], lexer, module, block_builder, func, return_type);
         } else {
             visit_node(node->children[i], lexer, module, block_builder);
         }
