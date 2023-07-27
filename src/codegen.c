@@ -112,6 +112,7 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             return visit_node_expression(node, lexer, module, builder);
             break;
         case NODE_IF_STATEMENT:
+            visit_node_if_statement(node, lexer, module, builder, current_function, functionReturns[functionCount - 1]);
             break;
         case NODE_NUMERIC_LITERAL:
             return visit_node_numeric_literal(node, lexer, module, builder);
