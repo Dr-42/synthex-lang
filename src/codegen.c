@@ -365,29 +365,29 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
 
 void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
     LLVMValueRef condition = NULL;
-    LLVMBasicBlockRef while_block = NULL;
-    LLVMBasicBlockRef merge_block = NULL;
+    LLVMBasicBlockRef while_block = LLVMCreateBasicBlockInContext(LLVMGetModuleContext(module), "while");
+    LLVMBasicBlockRef merge_block = LLVMCreateBasicBlockInContext(LLVMGetModuleContext(module), "merge");
 
+    LLVMBasicBlockRef while_cond_check_block = LLVMCreateBasicBlockInContext(LLVMGetModuleContext(module), "while_cond_check");
+    LLVMBuildBr(builder, while_cond_check_block);
+    LLVMAppendExistingBasicBlock(func, while_cond_check_block);
+    LLVMPositionBuilderAtEnd(builder, while_cond_check_block);
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
             condition = visit_node_expression(node->children[i], lexer, module, builder);
         } else if (node->children[i]->type == NODE_BLOCK_STATEMENT) {
-            while_block = create_if_block(node->children[i], lexer, module, builder, func, return_type, "while");
+            LLVMBuildCondBr(builder, condition, while_block, merge_block);
+            LLVMAppendExistingBasicBlock(func, while_block);
+            LLVMPositionBuilderAtEnd(builder, while_block);
+            for (size_t j = 0; j < node->children[i]->num_children; j++) {
+                visit_node(node->children[i]->children[j], lexer, module, builder);
+            }
+            LLVMBuildBr(builder, while_cond_check_block);
         }
     }
 
     if (condition != NULL && while_block != NULL) {
-        merge_block = LLVMAppendBasicBlockInContext(LLVMGetModuleContext(module), func, "merge");
-
-        // Position builder at end of the function block
-        LLVMPositionBuilderAtEnd(builder, LLVMGetInsertBlock(builder));
-        LLVMBuildCondBr(builder, condition, while_block, merge_block);
-        // Position builder at end of the while block to add the merge block
-        if (LLVMGetBasicBlockTerminator(while_block) == NULL) {
-            LLVMPositionBuilderAtEnd(builder, while_block);
-            LLVMValueRef condition = visit_node_expression(node->children[0], lexer, module, builder);
-            LLVMBuildCondBr(builder, condition, while_block, merge_block);
-        }
+        LLVMAppendExistingBasicBlock(func, merge_block);
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
 
