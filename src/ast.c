@@ -94,6 +94,15 @@ Node* ast_parse_statement(Lexer* lexer) {
             lexer_advance_cursor(lexer, 1);
             Node* expression = ast_parse_expression(lexer);
             node_add_child(statement, expression);
+        } else if (strcmp(token->value, keywords[KEYWORD_BRK]) == 0) {
+            statement = create_node(NODE_BRK_STATEMENT, NULL);
+            lexer_advance_cursor(lexer, 1);
+        } else if (strcmp(token->value, keywords[KEYWORD_CONT]) == 0) {
+            statement = create_node(NODE_CONT_STATEMENT, NULL);
+            lexer_advance_cursor(lexer, 1);
+        } else {
+            fprintf(stderr, "Unexpected keyword: %s\n", token->value);
+            assert(false);
         }
     } else if (token->type == TOKEN_IDENTIFIER) {
         return ast_parse_assignment(lexer);

@@ -23,6 +23,9 @@ LLVMTypeRef current_scope_variable_types[100] = {0};
 const char* current_scope_variable_names[100] = {0};
 size_t current_scope_variable_count = 0;
 
+LLVMBasicBlockRef while_merge_block = NULL;
+LLVMBasicBlockRef while_cond_block = NULL;
+
 void convert_all_types(LLVMContextRef ctx) {
     llvm_types = calloc(TYPE_COUNT, sizeof(LLVMTypeRef));
     llvm_types[0] = LLVMInt8TypeInContext(ctx);
@@ -137,6 +140,20 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             break;
         case NODE_NULL_LITERAL:
             return visit_node_null_literal(node, lexer, module, builder);
+            break;
+        case NODE_BRK_STATEMENT:
+            if (while_merge_block != NULL && while_cond_block != NULL) {
+                LLVMBuildBr(builder, while_merge_block);
+            } else {
+                fprintf(stderr, "Error: Break statement outside of loop\n");
+            }
+            break;
+        case NODE_CONT_STATEMENT:
+            if (while_cond_block != NULL && while_merge_block != NULL) {
+                LLVMBuildBr(builder, while_cond_block);
+            } else {
+                fprintf(stderr, "Error: Continue statement outside of loop\n");
+            }
             break;
         case NODE_COMMENT:
             break;
@@ -381,6 +398,9 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     LLVMBuildBr(builder, while_cond_check_block);
     LLVMAppendExistingBasicBlock(func, while_cond_check_block);
     LLVMPositionBuilderAtEnd(builder, while_cond_check_block);
+
+    while_cond_block = while_cond_check_block;
+    while_merge_block = merge_block;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
             condition = visit_node_expression(node->children[i], lexer, module, builder);
@@ -400,6 +420,8 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
 
+    while_cond_block = NULL;
+    while_merge_block = NULL;
     return;
 }
 
