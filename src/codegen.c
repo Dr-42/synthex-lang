@@ -399,6 +399,9 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     LLVMAppendExistingBasicBlock(func, while_cond_check_block);
     LLVMPositionBuilderAtEnd(builder, while_cond_check_block);
 
+    LLVMBasicBlockRef prev_while_cond_block = while_cond_block;
+    LLVMBasicBlockRef prev_while_merge_block = while_merge_block;
+
     while_cond_block = while_cond_check_block;
     while_merge_block = merge_block;
     for (size_t i = 0; i < node->num_children; i++) {
@@ -420,8 +423,8 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
 
-    while_cond_block = NULL;
-    while_merge_block = NULL;
+    while_cond_block = prev_while_cond_block;
+    while_merge_block = prev_while_merge_block;
     return;
 }
 
