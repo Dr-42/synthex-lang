@@ -164,7 +164,7 @@ Node* ast_parse_function(Lexer* lexer) {
 
     token = lexer_peek_token(lexer, 2);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
-        lexer_advance_cursor(lexer, 1);
+        lexer_advance_cursor(lexer, 3);
         return function;
     }
 
