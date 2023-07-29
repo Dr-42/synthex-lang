@@ -69,6 +69,8 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
         LLVMDisposeMessage(error);
     }
 
+    LLVMDumpModule(module);
+
     LLVMRemoveModule(engine, module, &module, &error);
     if (error) {
         printf("Error: %s\n", error);
@@ -258,8 +260,6 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
                 visit_node_block_statement(child, lexer, module, builder, func, return_type);
             }
         }
-
-        LLVMDumpValue(func);
     }
     for (size_t i = 0; i < arg_count; i++) {
         free(arg_names[i]);
@@ -615,6 +615,9 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
             case NODE_NULL_LITERAL:
                 lhs = visit_node_null_literal(child, lexer, module, builder);
                 continue;
+            case NODE_STRING_LITERAL:
+                lhs = visit_node_string_literal(child, lexer, module, builder);
+                continue;
             default:
                 printf("Unknown expression node type: %s\n", node_type_to_string(node->type));
                 break;
@@ -679,7 +682,17 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
     return ret;
 }
 
-void visit_node_string_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_string_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    const char* value = node->data;
+    LLVMValueRef string = LLVMBuildGlobalStringPtr(builder, value, "strtmp");
+    return string;
+}
+
+void visit_node_elif_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    return;
+}
+
+void visit_node_else_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
     return;
 }
 
