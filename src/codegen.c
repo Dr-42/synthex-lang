@@ -15,6 +15,7 @@ LLVMTypeRef* llvm_types;
 
 LLVMTypeRef functionReturns[100] = {0};
 const char* functionNames[100] = {0};
+bool functionIsVararg[100] = {0};
 size_t functionCount = 0;
 LLVMValueRef current_function = NULL;
 
@@ -202,6 +203,7 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
     LLVMTypeRef* arg_types = NULL;
     char** arg_names = NULL;
     size_t arg_count = 0;
+    bool is_vararg = false;
 
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
@@ -215,6 +217,10 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
                 }
             }
         } else if (child->type == NODE_FUNCTION_ARGUMENT) {
+            if (strcmp(child->data, "...") == 0) {
+                is_vararg = true;
+                continue;
+            }
             arg_count++;
         }
     }
@@ -226,6 +232,13 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
         for (size_t i = 0; i < node->num_children; i++) {
             Node* child = node->children[i];
             if (child->type == NODE_FUNCTION_ARGUMENT) {
+                if (strcmp(child->data, "...") == 0) {
+                    functionIsVararg[functionCount] = true;
+                    arg_types[arg_index] = LLVMPointerType(LLVMVoidType(), 0);
+                    arg_names[arg_index] = child->data;
+                    arg_index++;
+                    continue;
+                }
                 Node* type_node = child->children[0];
                 for (size_t j = 0; j < TYPE_COUNT; j++) {
                     if (strcmp(type_node->data, types[j]) == 0) {
@@ -238,7 +251,7 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
             }
         }
 
-        LLVMTypeRef func_type = LLVMFunctionType(return_type, arg_types, arg_count, 0);
+        LLVMTypeRef func_type = LLVMFunctionType(return_type, arg_types, arg_count, is_vararg);
         LLVMValueRef func = LLVMAddFunction(module, func_name, func_type);
 
         functionNames[functionCount] = func_name;
@@ -547,9 +560,13 @@ LLVMValueRef visit_node_operator(Node* node, Lexer* lexer, LLVMModuleRef module,
             return LLVMBuildSub(builder, value1, value2, "subtmp");
         } else if (strcmp(op, "*") == 0) {
             return LLVMBuildMul(builder, value1, value2, "multmp");
+        } else if (strcmp(op, "/") == 0) {
+            return LLVMBuildSDiv(builder, value1, value2, "divtmp");
+        } else if (strcmp(op, "%") == 0) {
+            return LLVMBuildSRem(builder, value1, value2, "modtmp");
         } else if (strcmp(op, "==") == 0) {
             return LLVMBuildICmp(builder, LLVMIntEQ, value1, value2, "eqtmp");
-        } else if (strcmp(op, "!-") == 0) {
+        } else if (strcmp(op, "!=") == 0) {
             return LLVMBuildICmp(builder, LLVMIntNE, value1, value2, "neqtmp");
         } else if (strcmp(op, "<") == 0) {
             return LLVMBuildICmp(builder, LLVMIntSLT, value1, value2, "lttmp");
@@ -559,6 +576,10 @@ LLVMValueRef visit_node_operator(Node* node, Lexer* lexer, LLVMModuleRef module,
             return LLVMBuildICmp(builder, LLVMIntSLE, value1, value2, "letmp");
         } else if (strcmp(op, ">=") == 0) {
             return LLVMBuildICmp(builder, LLVMIntSGE, value1, value2, "getmp");
+        } else if (strcmp(op, "&&") == 0) {
+            return LLVMBuildAnd(builder, value1, value2, "andtmp");
+        } else if (strcmp(op, "||") == 0) {
+            return LLVMBuildOr(builder, value1, value2, "ortmp");
         } else {
             printf("Error: Unsupported operator '%s'\n", op);
         }
@@ -646,9 +667,11 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
     LLVMTypeRef ret_type = NULL;
 
     // Get return type
+    bool is_function_vararg = false;
     for (size_t i = 0; i < functionCount; i++) {
         if (strcmp(functionNames[i], function_name) == 0) {
             ret_type = functionReturns[i];
+            is_function_vararg = functionIsVararg[i];
         }
     }
 
@@ -657,12 +680,15 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
         return NULL;
     }
 
-    // Create function type
-    LLVMTypeRef function_type = LLVMFunctionType(ret_type, param_types, param_count, false);
+    // Get function type
+    LLVMTypeRef function_type = LLVMFunctionType(ret_type, param_types, param_count, is_function_vararg);
 
     // Validate against node's number of children - 1 (function name)
-    if (node->num_children - 1 != param_count) {
+    if (!is_function_vararg && node->num_children - 1 != param_count) {
         printf("Error: Incorrect number of arguments for function '%s'\n", function_name);
+        return NULL;
+    } else if (is_function_vararg && node->num_children - 1 < param_count) {
+        printf("Error: Too few arguments for variadic function '%s'\n", function_name);
         return NULL;
     }
 
@@ -681,8 +707,6 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
     free(args);
     return ret;
 }
-
-#include <string.h>
 
 char* unescape_string(const char* input) {
     size_t len = strlen(input);

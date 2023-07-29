@@ -48,6 +48,7 @@ const char *types[] = {
 };
 
 const char *operators[] = {
+    "...",
     "+=",
     "-=",
     "*=",

@@ -169,6 +169,15 @@ Node* ast_parse_function(Lexer* lexer) {
     token = lexer_peek_token(lexer, 2);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
         lexer_advance_cursor(lexer, 3);
+        declared_functions[declared_functions_count].name = identifier->data;
+        declared_functions[declared_functions_count].return_type = type->data;
+        for (size_t i = 0; i < function->num_children; i++) {
+            if (function->children[i]->type == NODE_FUNCTION_ARGUMENT) {
+                declared_functions[declared_functions_count].arguments[declared_functions[declared_functions_count].argument_count] = function->children[i]->data;
+                declared_functions[declared_functions_count].argument_count++;
+            }
+        }
+        declared_functions_count++;
         return function;
     }
 
@@ -197,18 +206,30 @@ Node* ast_parse_function(Lexer* lexer) {
 
 Node* ast_parse_function_argument(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
+    bool is_ellipsis = false;
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ")") == 0) {
         lexer_advance_cursor(lexer, 1);
         return NULL;
     }
     token = lexer_peek_token(lexer, 0);
-    if (token->type != TOKEN_IDENTIFIER) {
+    if (token->type == TOKEN_OPERATOR && strcmp(token->value, "...") == 0) {
+        is_ellipsis = true;
+        Token* next_token = lexer_peek_token(lexer, 1);
+        if (next_token->type != TOKEN_PUNCTUATION || strcmp(next_token->value, ")") != 0) {
+            fprintf(stderr, "Expected closing parenthesis after ellipsis in function argument, got %s\n", next_token->value);
+            assert(false);
+        }
+    } else if (token->type != TOKEN_IDENTIFIER) {
         fprintf(stderr, "Expected identifier as function argument, got %s\n", token->value);
         assert(false);
     }
     Node* argument = create_node(NODE_FUNCTION_ARGUMENT, token->value);
+    if (is_ellipsis) {
+        lexer_advance_cursor(lexer, 1);
+        return argument;
+    }
     token = lexer_peek_token(lexer, 1);
-    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") != 0) {
+    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") != 0 && !is_ellipsis) {
         fprintf(stderr, "Expected type declaration after function argument identifier, got %s\n", token->value);
         assert(false);
     }
