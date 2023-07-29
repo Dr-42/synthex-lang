@@ -682,8 +682,49 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
     return ret;
 }
 
+#include <string.h>
+
+char* unescape_string(const char* input) {
+    size_t len = strlen(input);
+    char* output = malloc(len - 1);  // Allocate memory for the new string
+    char* p = output;
+
+    for (size_t i = 1; i < len - 1; ++i) {  // Skip the first and last characters (quotes)
+        if (input[i] == '\\') {             // If this is an escape character
+            switch (input[++i]) {           // Check the next character
+                case 'n':
+                    *p++ = '\n';
+                    break;
+                case 't':
+                    *p++ = '\t';
+                    break;
+                case 'r':
+                    *p++ = '\r';
+                    break;
+                case '0':
+                    *p++ = '\0';
+                    break;
+                case '\\':
+                    *p++ = '\\';
+                    break;
+                case '\"':
+                    *p++ = '\"';
+                    break;
+                default:
+                    *p++ = input[i];
+                    break;  // If it's not a recognized escape sequence, just copy it
+            }
+        } else {
+            *p++ = input[i];  // If it's not an escape character, just copy it
+        }
+    }
+
+    *p = '\0';  // Null-terminate the new string
+    return output;
+}
+
 LLVMValueRef visit_node_string_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
-    const char* value = node->data;
+    const char* value = unescape_string(node->data);
     LLVMValueRef string = LLVMBuildGlobalStringPtr(builder, value, "strtmp");
     return string;
 }
