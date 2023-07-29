@@ -431,35 +431,6 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
 void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef value = NULL;
     LLVMValueRef variable = NULL;
-    bool is_also_declaration = false;
-    Node* declaration_node = NULL;
-    for (size_t i = 0; i < node->num_children; i++) {
-        Node* child = node->children[i];
-        if (child->type == NODE_IDENTIFIER) {
-            if (child->num_children > 0) {
-                if (child->children[0]->type == NODE_TYPE) {
-                    is_also_declaration = true;
-                    break;
-                }
-            }
-        }
-    }
-
-    if (is_also_declaration) {
-        declaration_node = create_node(NODE_VARIABLE_DECLARATION, NULL);
-        for (size_t i = 0; i < node->num_children; i++) {
-            Node* child = node->children[i];
-            if (child->type == NODE_IDENTIFIER) {
-                declaration_node->data = child->data;
-                declaration_node->type = NODE_VARIABLE_DECLARATION;
-                Node* type_node = create_node(NODE_TYPE, child->children[0]->data);
-                node_add_child(declaration_node, type_node);
-            }
-        }
-        visit_node_variable_declaration(declaration_node, lexer, module, builder);
-        destroy_node(declaration_node);
-    }
-
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
         if (child->type == NODE_IDENTIFIER) {
@@ -472,10 +443,6 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
     if (variable != NULL && value != NULL) {
         LLVMTypeRef variable_type = LLVMTypeOf(variable);
         LLVMTypeRef value_type = LLVMTypeOf(value);
-
-        // printf("Variable type: %s\n", LLVMPrintTypeToString(variable_type));
-        // printf("Value type: %s\n", LLVMPrintTypeToString(value_type));
-
         LLVMBuildStore(builder, value, variable);
     } else {
         printf("Error: Variable '%s' could not be assigned\n", node->data);

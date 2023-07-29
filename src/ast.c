@@ -70,8 +70,12 @@ Node* ast_parse_program(Lexer* lexer) {
     Node* program = create_node(NODE_PROGRAM, NULL);
     Token* token = lexer_peek_token(lexer, 0);
     while (token->type != TOKEN_EOF) {
-        Node* statement = ast_parse_statement(lexer);
+        Node* decl_node = NULL;
+        Node* statement = ast_parse_statement(lexer, &decl_node);
         if (statement != NULL) {
+            if (decl_node != NULL) {
+                node_add_child(program, decl_node);
+            }
             node_add_child(program, statement);
         }
         token = lexer_peek_token(lexer, 0);
@@ -79,7 +83,7 @@ Node* ast_parse_program(Lexer* lexer) {
     return program;
 }
 
-Node* ast_parse_statement(Lexer* lexer) {
+Node* ast_parse_statement(Lexer* lexer, Node** decl_node) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* statement = NULL;
     if (token->type == TOKEN_KEYWORD) {
@@ -105,7 +109,7 @@ Node* ast_parse_statement(Lexer* lexer) {
             assert(false);
         }
     } else if (token->type == TOKEN_IDENTIFIER) {
-        return ast_parse_assignment(lexer);
+        return ast_parse_assignment(lexer, decl_node);
     } else if (token->type == TOKEN_PUNCTUATION) {
         if (strcmp(token->value, ";") == 0) {
             statement = create_node(NODE_NULL_LITERAL, NULL);
@@ -325,17 +329,21 @@ Node* ast_parse_block(Lexer* lexer) {
         if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "}") == 0) {
             break;
         }
-        Node* statement = ast_parse_statement(lexer);
+        Node* decl_node = NULL;
+        Node* statement = ast_parse_statement(lexer, &decl_node);
         if (statement == NULL) {
             break;
         } else {
+            if (decl_node != NULL) {
+                node_add_child(block, decl_node);
+            }
             node_add_child(block, statement);
         }
     }
     return block;
 }
 
-Node* ast_parse_assignment(Lexer* lexer) {
+Node* ast_parse_assignment(Lexer* lexer, Node** decl_node) {
     Token* token = lexer_peek_token(lexer, 0);
     if (token->type != TOKEN_IDENTIFIER) {
         fprintf(stderr, "Expected identifier as left-hand side of assignment, got %s\n", token->value);
@@ -377,11 +385,11 @@ Node* ast_parse_assignment(Lexer* lexer) {
         assert(false);
     }
     Node* type = create_node(NODE_TYPE, token->value);
-    node_add_child(identifier, type);
     token = lexer_peek_token(lexer, 3);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
         lexer_advance_cursor(lexer, 4);
         identifier->type = NODE_VARIABLE_DECLARATION;
+        node_add_child(identifier, type);
 
         declared_variables[declared_variables_count].name = identifier->data;
         declared_variables[declared_variables_count].type = type->data;
@@ -394,6 +402,10 @@ Node* ast_parse_assignment(Lexer* lexer) {
         Node* assignment = create_node(NODE_ASSIGNMENT, NULL);
         node_add_child(assignment, identifier);
         node_add_child(assignment, expression);
+
+        Node* declaration = create_node(NODE_VARIABLE_DECLARATION, identifier->data);
+        node_add_child(declaration, type);
+        *decl_node = declaration;
 
         declared_variables[declared_variables_count].name = identifier->data;
         declared_variables[declared_variables_count].type = type->data;
