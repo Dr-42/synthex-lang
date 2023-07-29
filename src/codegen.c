@@ -274,9 +274,7 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
             }
         }
     }
-    for (size_t i = 0; i < arg_count; i++) {
-        free(arg_names[i]);
-    }
+    free(arg_names);
 }
 
 void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
