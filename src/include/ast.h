@@ -29,5 +29,6 @@ Node* ast_parse_variable_declaration(Lexer* lexer);
 Node* ast_parse_array_declaration(Lexer* lexer);
 Node* ast_parse_assignment(Lexer* lexer);
 Node* ast_parse_array_assignment(Lexer* lexer);
+Node* ast_parse_array_expression(Lexer* lexer, size_t array_dim);
 Node* ast_parse_expression(Lexer* lexer);
 Node* ast_parse_call_expression(Lexer* lexer);
