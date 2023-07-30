@@ -7,5 +7,5 @@ src = "./src/"
 include_dir = "./src/include/"
 type = "exe"
 cflags = "-g `llvm-config --cflags`"
-libs = "`llvm-config --cxxflags --ldflags --libs core executionengine mcjit interpreter analysis native bitwriter --system-libs`"
+libs = "`llvm-config --ldflags --libs core --system-libs`"
 deps = [""]

@@ -26,6 +26,8 @@ Node* ast_parse_while_statement(Lexer* lexer);
 Node* ast_parse_function_argument(Lexer* lexer);
 Node* ast_parse_block(Lexer* lexer);
 Node* ast_parse_variable_declaration(Lexer* lexer);
+Node* ast_parse_array_declaration(Lexer* lexer);
 Node* ast_parse_assignment(Lexer* lexer);
+Node* ast_parse_array_assignment(Lexer* lexer);
 Node* ast_parse_expression(Lexer* lexer);
 Node* ast_parse_call_expression(Lexer* lexer);

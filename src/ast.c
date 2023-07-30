@@ -24,6 +24,8 @@ typedef struct Variable {
 
 Variable declared_variables[100];
 size_t declared_variables_count = 0;
+Variable declared_arrays[100];
+size_t declared_arrays_count = 0;
 Function declared_functions[100];
 size_t declared_functions_count = 0;
 
@@ -111,9 +113,30 @@ Node* ast_parse_statement(Lexer* lexer) {
         if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, "(") == 0) {
             statement = ast_parse_call_expression(lexer);
         } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, ":") == 0) {
-            statement = ast_parse_variable_declaration(lexer);
+            next_token = lexer_peek_token(lexer, 2);
+            if (next_token->type == TOKEN_TYPEANNOTATION) {
+                statement = ast_parse_variable_declaration(lexer);
+            } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, "[") == 0) {
+                statement = ast_parse_array_declaration(lexer);
+            } else {
+                fprintf(stderr, "Expected type annotation after colon in variable declaration, got %s\n", next_token->value);
+                assert(false);
+            }
+
         } else if (next_token->type == TOKEN_OPERATOR && strcmp(next_token->value, "=") == 0) {
-            statement = ast_parse_assignment(lexer);
+            for (size_t i = 0; i < declared_variables_count; i++) {
+                if (strcmp(declared_variables[i].name, token->value) == 0) {
+                    return ast_parse_assignment(lexer);
+                }
+            }
+            for (size_t i = 0; i < declared_arrays_count; i++) {
+                if (strcmp(declared_arrays[i].name, token->value) == 0) {
+                    return ast_parse_array_assignment(lexer);
+                }
+            }
+
+            fprintf(stderr, "Cannot assign to undeclared variable %s\n", token->value);
+            assert(false);
         }
     } else if (token->type == TOKEN_PUNCTUATION) {
         if (strcmp(token->value, ";") == 0) {
@@ -355,14 +378,10 @@ Node* ast_parse_block(Lexer* lexer) {
         if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "}") == 0) {
             break;
         }
-        Node* decl_node = NULL;
         Node* statement = ast_parse_statement(lexer);
         if (statement == NULL) {
             break;
         } else {
-            if (decl_node != NULL) {
-                node_add_child(block, decl_node);
-            }
             node_add_child(block, statement);
         }
     }
@@ -409,6 +428,77 @@ Node* ast_parse_variable_declaration(Lexer* lexer) {
     return NULL;
 }
 
+Node* ast_parse_array_declaration(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_IDENTIFIER) {
+        fprintf(stderr, "Expected identifier as left-hand side of array declaration, got %s\n", token->value);
+        assert(false);
+    }
+
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    token = lexer_peek_token(lexer, 3);
+    if (token->type != TOKEN_TYPEANNOTATION) {
+        fprintf(stderr, "Expected type annotation after colon in array declaration, got %s\n", token->value);
+        assert(false);
+    }
+    Node* type = create_node(NODE_TYPE, token->value);
+
+    size_t idx = 4;
+    size_t array_dims_count = 0;
+    Node** array_dims = calloc(100, sizeof(Node*));
+    while (true) {
+        token = lexer_peek_token(lexer, idx);
+        if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "]") == 0) {
+            idx++;
+            break;
+        }
+
+        token = lexer_peek_token(lexer, idx);
+        if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
+            idx++;
+        }
+
+        token = lexer_peek_token(lexer, idx);
+        if (token->type != TOKEN_NUMBER) {
+            fprintf(stderr, "Expected number as array size, got %s\n", token->value);
+            assert(false);
+        }
+        Node* array_dim = create_node(NODE_NUMERIC_LITERAL, token->value);
+        array_dims[array_dims_count] = array_dim;
+        array_dims_count++;
+        idx++;
+    }
+
+    Node* array_declaration = create_node(NODE_ARRAY_DECLARATION, NULL);
+    node_add_child(array_declaration, identifier);
+    node_add_child(array_declaration, type);
+    for (size_t i = 0; i < array_dims_count; i++) {
+        node_add_child(type, array_dims[i]);
+    }
+
+    free(array_dims);
+
+    declared_arrays[declared_arrays_count].name = identifier->data;
+    declared_arrays[declared_arrays_count].type = type->data;
+    declared_arrays_count++;
+
+    token = lexer_peek_token(lexer, idx);
+
+    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
+        lexer_advance_cursor(lexer, idx + 1);
+        return array_declaration;
+    } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+        lexer_advance_cursor(lexer, idx - 1);
+        tokens[lexer->index].type = TOKEN_IDENTIFIER;
+        tokens[lexer->index].value = identifier->data;
+        return array_declaration;
+    } else {
+        fprintf(stderr, "Expected semicolon or assignment operator after array declaration, got %s\n", token->value);
+        assert(false);
+    }
+    return NULL;
+}
+
 Node* ast_parse_assignment(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     if (token->type != TOKEN_IDENTIFIER) {
@@ -446,6 +536,11 @@ Node* ast_parse_assignment(Lexer* lexer) {
     return NULL;
 }
 
+Node* ast_parse_array_assignment(Lexer* lexer) {
+    assert(false && "TODO: Implement array assignment");
+    return NULL;
+}
+
 Node* ast_parse_expression(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* expression = create_node(NODE_EXPRESSION, NULL);
@@ -454,7 +549,7 @@ Node* ast_parse_expression(Lexer* lexer) {
         token = lexer_peek_token(lexer, 0);
 
         switch (token->type) {
-            case TOKEN_IDENTIFIER:{
+            case TOKEN_IDENTIFIER: {
                 Token* next_tok = lexer_peek_token(lexer, 1);
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
                     node_add_child(expression, ast_parse_call_expression(lexer));
