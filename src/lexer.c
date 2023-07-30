@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Token tokens[1000];
+Token tokens[1000];
 static uint32_t token_count = 0;
 
 const char *keywords[] = {

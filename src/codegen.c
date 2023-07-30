@@ -164,6 +164,8 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             printf("Unknown node type: %s\n", node_type_to_string(node->type));
             break;
     }
+
+    return NULL;
 }
 
 void visit_node_program(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
@@ -273,8 +275,8 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
                 visit_node_block_statement(child, lexer, module, builder, func, return_type);
             }
         }
+        free(arg_names);
     }
-    free(arg_names);
 }
 
 void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
@@ -455,7 +457,7 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
         LLVMTypeRef value_type = LLVMTypeOf(value);
         LLVMBuildStore(builder, value, variable);
     } else {
-        printf("Error: Variable '%s' could not be assigned\n", node->data);
+        printf("Error: Variable '%s' could not be assigned\n", (char*)node->data);
     }
 }
 
@@ -608,13 +610,14 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
             case NODE_IDENTIFIER:
                 lhs = visit_node_identifier(child, lexer, module, builder, true);
                 continue;
-            case NODE_OPERATOR:
+            case NODE_OPERATOR: {
                 Node* rhs;
                 rhs = node->children[i + 1];
                 LLVMValueRef value2 = visit_node(rhs, lexer, module, builder);
                 lhs = visit_node_operator(child, lexer, module, builder, lhs, value2);
                 i++;
                 continue;
+            }
             case NODE_CALL_EXPRESSION:
                 lhs = visit_node_call_expression(child, lexer, module, builder);
                 continue;

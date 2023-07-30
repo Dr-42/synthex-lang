@@ -1,5 +1,5 @@
 [build]
-compiler = "gcc"
+compiler = "clang"
 
 [[targets]]
 name = "main"

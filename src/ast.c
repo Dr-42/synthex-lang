@@ -8,6 +8,8 @@
 extern const char* keywords[];
 extern const size_t KEYWORD_COUNT;
 
+extern Token tokens[];
+
 typedef struct Function {
     const char* name;
     const char* return_type;
@@ -70,12 +72,8 @@ Node* ast_parse_program(Lexer* lexer) {
     Node* program = create_node(NODE_PROGRAM, NULL);
     Token* token = lexer_peek_token(lexer, 0);
     while (token->type != TOKEN_EOF) {
-        Node* decl_node = NULL;
-        Node* statement = ast_parse_statement(lexer, &decl_node);
+        Node* statement = ast_parse_statement(lexer);
         if (statement != NULL) {
-            if (decl_node != NULL) {
-                node_add_child(program, decl_node);
-            }
             node_add_child(program, statement);
         }
         token = lexer_peek_token(lexer, 0);
@@ -83,7 +81,7 @@ Node* ast_parse_program(Lexer* lexer) {
     return program;
 }
 
-Node* ast_parse_statement(Lexer* lexer, Node** decl_node) {
+Node* ast_parse_statement(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* statement = NULL;
     if (token->type == TOKEN_KEYWORD) {
@@ -109,7 +107,14 @@ Node* ast_parse_statement(Lexer* lexer, Node** decl_node) {
             assert(false);
         }
     } else if (token->type == TOKEN_IDENTIFIER) {
-        return ast_parse_assignment(lexer, decl_node);
+        Token* next_token = lexer_peek_token(lexer, 1);
+        if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, "(") == 0) {
+            statement = ast_parse_call_expression(lexer);
+        } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, ":") == 0) {
+            statement = ast_parse_variable_declaration(lexer);
+        } else if (next_token->type == TOKEN_OPERATOR && strcmp(next_token->value, "=") == 0) {
+            statement = ast_parse_assignment(lexer);
+        }
     } else if (token->type == TOKEN_PUNCTUATION) {
         if (strcmp(token->value, ";") == 0) {
             statement = create_node(NODE_NULL_LITERAL, NULL);
@@ -351,7 +356,7 @@ Node* ast_parse_block(Lexer* lexer) {
             break;
         }
         Node* decl_node = NULL;
-        Node* statement = ast_parse_statement(lexer, &decl_node);
+        Node* statement = ast_parse_statement(lexer);
         if (statement == NULL) {
             break;
         } else {
@@ -364,7 +369,47 @@ Node* ast_parse_block(Lexer* lexer) {
     return block;
 }
 
-Node* ast_parse_assignment(Lexer* lexer, Node** decl_node) {
+Node* ast_parse_variable_declaration(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_IDENTIFIER) {
+        fprintf(stderr, "Expected identifier as left-hand side of variable declaration, got %s\n", token->value);
+        assert(false);
+    }
+
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    token = lexer_peek_token(lexer, 1);
+    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") == 0) {
+        token = lexer_peek_token(lexer, 2);
+        if (token->type != TOKEN_TYPEANNOTATION) {
+            fprintf(stderr, "Expected type annotation after colon in variable declaration, got %s\n", token->value);
+            assert(false);
+        }
+        Node* type = create_node(NODE_TYPE, token->value);
+        token = lexer_peek_token(lexer, 3);
+
+        declared_variables[declared_variables_count].name = identifier->data;
+        declared_variables[declared_variables_count].type = type->data;
+        declared_variables_count++;
+        identifier->type = NODE_VARIABLE_DECLARATION;
+        node_add_child(identifier, type);
+
+        if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
+            lexer_advance_cursor(lexer, 4);
+            return identifier;
+        } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+            lexer_advance_cursor(lexer, 2);
+            tokens[lexer->index].type = TOKEN_IDENTIFIER;
+            tokens[lexer->index].value = identifier->data;
+            return identifier;
+        } else {
+            fprintf(stderr, "Expected semicolon or assignment operator after type annotation in variable declaration, got %s\n", token->value);
+            assert(false);
+        }
+    }
+    return NULL;
+}
+
+Node* ast_parse_assignment(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     if (token->type != TOKEN_IDENTIFIER) {
         fprintf(stderr, "Expected identifier as left-hand side of assignment, got %s\n", token->value);
@@ -394,50 +439,10 @@ Node* ast_parse_assignment(Lexer* lexer, Node** decl_node) {
         node_add_child(assignment, identifier);
         node_add_child(assignment, expression);
         return assignment;
-    }
-
-    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, ":") != 0) {
-        fprintf(stderr, "Expected colon after identifier in assignment, got %s\n", token->value);
-        assert(false);
-    }
-    token = lexer_peek_token(lexer, 2);
-    if (token->type != TOKEN_TYPEANNOTATION) {
-        fprintf(stderr, "Expected type annotation after colon in assignment, got %s\n", token->value);
-        assert(false);
-    }
-    Node* type = create_node(NODE_TYPE, token->value);
-    token = lexer_peek_token(lexer, 3);
-    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
-        lexer_advance_cursor(lexer, 4);
-        identifier->type = NODE_VARIABLE_DECLARATION;
-        node_add_child(identifier, type);
-
-        declared_variables[declared_variables_count].name = identifier->data;
-        declared_variables[declared_variables_count].type = type->data;
-        declared_variables_count++;
-
-        return identifier;
-    } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
-        lexer_advance_cursor(lexer, 4);
-        Node* expression = ast_parse_expression(lexer);
-        Node* assignment = create_node(NODE_ASSIGNMENT, NULL);
-        node_add_child(assignment, identifier);
-        node_add_child(assignment, expression);
-
-        Node* declaration = create_node(NODE_VARIABLE_DECLARATION, identifier->data);
-        node_add_child(declaration, type);
-        *decl_node = declaration;
-
-        declared_variables[declared_variables_count].name = identifier->data;
-        declared_variables[declared_variables_count].type = type->data;
-        declared_variables_count++;
-
-        return assignment;
     } else {
-        fprintf(stderr, "Expected semicolon or assignment operator after type annotation in assignment, got %s\n", token->value);
+        fprintf(stderr, "Expected assignment operator after identifier in assignment, got %s\n", token->value);
         assert(false);
     }
-
     return NULL;
 }
 
@@ -449,7 +454,7 @@ Node* ast_parse_expression(Lexer* lexer) {
         token = lexer_peek_token(lexer, 0);
 
         switch (token->type) {
-            case TOKEN_IDENTIFIER:
+            case TOKEN_IDENTIFIER:{
                 Token* next_tok = lexer_peek_token(lexer, 1);
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
                     node_add_child(expression, ast_parse_call_expression(lexer));
@@ -457,6 +462,7 @@ Node* ast_parse_expression(Lexer* lexer) {
                     node_add_child(expression, create_node(NODE_IDENTIFIER, token->value));
                 }
                 break;
+            }
             case TOKEN_STRING:
                 node_add_child(expression, create_node(NODE_STRING_LITERAL, token->value));
                 break;
