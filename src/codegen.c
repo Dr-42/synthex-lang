@@ -130,7 +130,7 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
         case NODE_ARRAY_ASSIGNMENT:
             visit_node_array_assignment(node, lexer, module, builder);
             break;
-        case NODE_ARRAY_EXPRESSION:
+        case NODE_ARRAY_ELEMENT:
             return visit_node_array_element(node, lexer, module, builder);
             break;
         case NODE_IF_STATEMENT:
@@ -731,8 +731,97 @@ void visit_node_array_declaration(Node* node, Lexer* lexer, LLVMModuleRef module
 }
 
 void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    const char* array_name = NULL;
+    LLVMValueRef array = NULL;
+    LLVMValueRef value = NULL;
+    Node* iden = NULL;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_IDENTIFIER) {
+            array_name = child->data;
+            iden = child;
+        } else if (child->type == NODE_EXPRESSION) {
+            value = visit_node_expression(child, lexer, module, builder);
+        }
+    }
+
+    size_t idx = 0;
+    for (int i = 0; i < current_scope_array_count; i++) {
+        if (strcmp(current_scope_array_names[i], array_name) == 0) {
+            array = current_scope_arrays[i];
+            idx = i;
+            break;
+        }
+    }
+    if (array == NULL) {
+        printf("Error: Cannot assign to undeclared array '%s'\n", array_name);
+        return;
+    }
+
+    size_t num_dimensions = current_scope_array_dims[idx];
+    LLVMTypeRef array_type = current_scope_array_types[idx];
+    LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
+
+    size_t inds[num_dimensions];
+    LLVMValueRef indices[num_dimensions];
+
+    for (size_t i = 0; i < iden->num_children; i++) {
+        Node* child = iden->children[i];
+        if (child->type == NODE_NUMERIC_LITERAL) {
+            inds[i] = atoi(child->data);
+        }
+    }
+
+    for (size_t i = 0; i < num_dimensions; i++) {
+        indices[i] = LLVMConstInt(LLVMInt32Type(), inds[i], false);
+    }
+
+    LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, num_dimensions, "geptmp");
+    LLVMBuildStore(builder, value, gep);
 }
+
 LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    LLVMValueRef array = NULL;
+    LLVMValueRef value = NULL;
+    const char* array_name = NULL;
+
+    array_name = node->data;
+    size_t idx = 0;
+    for (int i = 0; i < current_scope_array_count; i++) {
+        if (strcmp(current_scope_array_names[i], array_name) == 0) {
+            array = current_scope_arrays[i];
+            idx = i;
+            break;
+        }
+    }
+
+    if (array == NULL) {
+        printf("Error: Cannot access undeclared array '%s'\n", array_name);
+        return NULL;
+    }
+
+    size_t num_dimensions = current_scope_array_dims[idx];
+    LLVMTypeRef array_type = current_scope_array_types[idx];
+    LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
+
+    size_t inds[num_dimensions];
+    LLVMValueRef indices[num_dimensions];
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_NUMERIC_LITERAL) {
+            inds[i] = atoi(child->data);
+        }
+    }
+
+    for (size_t i = 0; i < num_dimensions; i++) {
+        indices[i] = LLVMConstInt(LLVMInt32Type(), inds[i], false);
+    }
+
+    LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, num_dimensions, "geptmp");
+    value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
+    return value;
 }
 
 LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
