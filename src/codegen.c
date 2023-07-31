@@ -24,6 +24,13 @@ LLVMTypeRef current_scope_variable_types[100] = {0};
 const char* current_scope_variable_names[100] = {0};
 size_t current_scope_variable_count = 0;
 
+LLVMValueRef current_scope_arrays[100] = {0};
+LLVMTypeRef current_scope_array_types[100] = {0};
+LLVMTypeRef current_scope_array_element_types[100] = {0};
+const char* current_scope_array_names[100] = {0};
+size_t current_scope_array_dims[100] = {0};
+size_t current_scope_array_count = 0;
+
 LLVMBasicBlockRef while_merge_block = NULL;
 LLVMBasicBlockRef while_cond_block = NULL;
 
@@ -116,6 +123,15 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             break;
         case NODE_EXPRESSION:
             return visit_node_expression(node, lexer, module, builder);
+            break;
+        case NODE_ARRAY_DECLARATION:
+            visit_node_array_declaration(node, lexer, module, builder);
+            break;
+        case NODE_ARRAY_ASSIGNMENT:
+            visit_node_array_assignment(node, lexer, module, builder);
+            break;
+        case NODE_ARRAY_EXPRESSION:
+            return visit_node_array_element(node, lexer, module, builder);
             break;
         case NODE_IF_STATEMENT:
             visit_node_if_statement(node, lexer, module, builder, current_function, functionReturns[functionCount - 1]);
@@ -275,7 +291,7 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
                 visit_node_block_statement(child, lexer, module, builder, func, return_type);
             }
         }
-        free(arg_names);
+        // free(arg_names);
     }
 }
 
@@ -607,6 +623,9 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
             case NODE_EXPRESSION:
                 lhs = visit_node_expression(child, lexer, module, builder);
                 continue;
+            case NODE_ARRAY_ELEMENT:
+                lhs = visit_node_array_element(child, lexer, module, builder);
+                continue;
             case NODE_IDENTIFIER:
                 lhs = visit_node_identifier(child, lexer, module, builder, true);
                 continue;
@@ -645,6 +664,75 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
         }
     }
     return lhs;
+}
+
+void visit_node_array_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    const char* array_name = NULL;
+    LLVMTypeRef array_types[100] = {0};
+    LLVMTypeRef array_element_type = NULL;
+    LLVMValueRef array = NULL;
+    LLVMTypeRef array_type = NULL;
+
+    size_t num_elements[100] = {0};
+    size_t num_dimensions = 0;
+
+    Node* type_node = NULL;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_TYPE) {
+            type_node = child;
+            for (size_t j = 0; j < TYPE_COUNT; j++) {
+                if (strcmp(child->data, types[j]) == 0) {
+                    array_element_type = llvm_types[j];
+                    break;
+                }
+            }
+        } else if (child->type == NODE_IDENTIFIER) {
+            array_name = child->data;
+        }
+    }
+
+    for (size_t i = 0; i < type_node->num_children; i++) {
+        Node* child = type_node->children[i];
+        if (child->type == NODE_NUMERIC_LITERAL) {
+            num_elements[i] = atoi(child->data);
+            num_dimensions++;
+        }
+    }
+
+    if (array_name != NULL) {
+        // reverse the array dimensions
+        size_t reversed_num_elements[100] = {0};
+        for (size_t i = 0; i < num_dimensions; i++) {
+            reversed_num_elements[i] = num_elements[num_dimensions - i - 1];
+        }
+
+        // Create the array type
+        for (size_t i = 0; i < num_dimensions; i++) {
+            if (i == 0) {
+                array_type = LLVMArrayType(array_element_type, reversed_num_elements[i]);
+            } else {
+                array_type = LLVMArrayType(array_type, reversed_num_elements[i]);
+            }
+        }
+
+        array = LLVMBuildAlloca(builder, array_type, array_name);
+
+        current_scope_arrays[current_scope_array_count] = array;
+        current_scope_array_names[current_scope_array_count] = array_name;
+        current_scope_array_types[current_scope_array_count] = array_type;
+        current_scope_array_element_types[current_scope_array_count] = array_element_type;
+        current_scope_array_dims[current_scope_array_count] = num_dimensions;
+        current_scope_array_count++;
+    } else {
+        printf("Error: Array '%s' could not be declared\n", array_name);
+    }
+}
+
+void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+}
+LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
 }
 
 LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
