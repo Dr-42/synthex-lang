@@ -98,6 +98,8 @@ char* node_type_to_string(NodeType type) {
             return "NODE_ARRAY_ASSIGNMENT";
         case NODE_ARRAY_EXPRESSION:
             return "NODE_ARRAY_EXPRESSION";
+        case NODE_ARRAY_ELEMENT:
+            return "NODE_ARRAY_ELEMENT";
         case NODE_IDENTIFIER:
             return "NODE_IDENTIFIER";
         case NODE_TYPE:
