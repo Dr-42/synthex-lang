@@ -160,6 +160,9 @@ Token *lexer_create_token(Lexer *lexer, TokenType type, size_t start, size_t end
     token->type = type;
     token->value = calloc(end - start + 1, sizeof(char));
     memcpy(token->value, lexer->contents + start, end - start);
+    token->line = lexer->line;
+    token->column = lexer->column;
+    token->filename = lexer->filename;
     return token;
 }
 
@@ -209,6 +212,12 @@ Token *lexer_next_token(Lexer *lexer) {
         // Skip whitespaces
         if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
             lexer->index++;
+            if (c == '\n') {
+                lexer->line++;
+                lexer->column = 1;
+            } else {
+                lexer->column++;
+            }
             continue;
         }
 
@@ -216,6 +225,7 @@ Token *lexer_next_token(Lexer *lexer) {
         for (uint32_t i = 0; i < KEYWORD_COUNT; i++) {
             if (strncmp(&lexer->contents[lexer->index], keywords[i], strlen(keywords[i])) == 0) {
                 lexer->index += strlen(keywords[i]);
+                lexer->column += strlen(keywords[i]);
                 return lexer_create_token(lexer, TOKEN_KEYWORD, lexer->index - strlen(keywords[i]), lexer->index);
             }
         }
@@ -224,6 +234,7 @@ Token *lexer_next_token(Lexer *lexer) {
         for (uint32_t i = 0; i < TYPE_COUNT; i++) {
             if (strncmp(&lexer->contents[lexer->index], types[i], strlen(types[i])) == 0) {
                 lexer->index += strlen(types[i]);
+                lexer->column += strlen(types[i]);
                 return lexer_create_token(lexer, TOKEN_TYPEANNOTATION, lexer->index - strlen(types[i]), lexer->index);
             }
         }
@@ -232,6 +243,7 @@ Token *lexer_next_token(Lexer *lexer) {
             size_t start = lexer->index;
             while (isalpha(lexer->contents[lexer->index]) || isdigit(lexer->contents[lexer->index]) || lexer->contents[lexer->index] == '_' || lexer->contents[lexer->index] == '-') {
                 lexer->index++;
+                lexer->column++;
             }
             return lexer_create_token(lexer, TOKEN_IDENTIFIER, start, lexer->index);
         }
@@ -244,6 +256,7 @@ Token *lexer_next_token(Lexer *lexer) {
                 if (lexer->contents[lexer->index] == '.') {
                     type = TOKEN_FLOAT_NUM;
                     lexer->index++;
+                    lexer->column++;
                 }
             }
             return lexer_create_token(lexer, type, start, lexer->index);
@@ -253,8 +266,10 @@ Token *lexer_next_token(Lexer *lexer) {
             size_t start = lexer->index++;
             while (lexer->contents[lexer->index] != '\"') {
                 lexer->index++;
+                lexer->column++;
             }
             lexer->index++;
+            lexer->column++;
             return lexer_create_token(lexer, TOKEN_STRING, start, lexer->index);
         }
 
@@ -262,6 +277,7 @@ Token *lexer_next_token(Lexer *lexer) {
         for (uint32_t i = 0; i < PUNCTUATION_COUNT; i++) {
             if (c == punctuation[i][0]) {
                 lexer->index++;
+                lexer->column++;
                 return lexer_create_token(lexer, TOKEN_PUNCTUATION, lexer->index - 1, lexer->index);
             }
         }
@@ -270,6 +286,7 @@ Token *lexer_next_token(Lexer *lexer) {
         for (uint32_t i = 0; i < OPERATOR_COUNT; i++) {
             if (strncmp(&lexer->contents[lexer->index], operators[i], strlen(operators[i])) == 0) {
                 lexer->index += strlen(operators[i]);
+                lexer->column += strlen(operators[i]);
                 return lexer_create_token(lexer, TOKEN_OPERATOR, lexer->index - strlen(operators[i]), lexer->index);
             }
         }
@@ -279,6 +296,7 @@ Token *lexer_next_token(Lexer *lexer) {
             size_t start = lexer->index;
             while (lexer->contents[lexer->index] != '\n') {
                 lexer->index++;
+                lexer->column++;
             }
             return lexer_create_token(lexer, TOKEN_COMMENT, start, lexer->index);
         }
@@ -288,12 +306,15 @@ Token *lexer_next_token(Lexer *lexer) {
             size_t start = lexer->index;
             while (lexer->contents[lexer->index] != '*' || lexer->contents[lexer->index + 1] != '/') {
                 lexer->index++;
+                lexer->column++;
             }
             lexer->index += 2;
+            lexer->column += 2;
             return lexer_create_token(lexer, TOKEN_COMMENT, start, lexer->index);
         }
 
         lexer->index++;
+        lexer->column++;
     }
 
     return lexer_create_token(lexer, TOKEN_EOF, lexer->index, lexer->index);

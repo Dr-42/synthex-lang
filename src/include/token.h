@@ -19,4 +19,7 @@ typedef enum {
 typedef struct {
     TokenType type;
     char *value;
+    size_t line;
+    size_t column;
+    char *filename;
 } Token;
