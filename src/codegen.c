@@ -763,18 +763,15 @@ void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module,
     LLVMTypeRef array_type = current_scope_array_types[idx];
     LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
 
-    size_t inds[num_dimensions];
+    size_t ind = 0;
     LLVMValueRef indices[num_dimensions];
 
     for (size_t i = 0; i < iden->num_children; i++) {
         Node* child = iden->children[i];
-        if (child->type == NODE_NUMERIC_LITERAL) {
-            inds[i] = atoi(child->data);
+        if (child->type == NODE_EXPRESSION) {
+            indices[ind] = visit_node_expression(child, lexer, module, builder);
+            ind++;
         }
-    }
-
-    for (size_t i = 0; i < num_dimensions; i++) {
-        indices[i] = LLVMConstInt(LLVMInt32Type(), inds[i], false);
     }
 
     LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, num_dimensions, "geptmp");
@@ -805,18 +802,15 @@ LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef mo
     LLVMTypeRef array_type = current_scope_array_types[idx];
     LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
 
-    size_t inds[num_dimensions];
+    size_t ind = 0;
     LLVMValueRef indices[num_dimensions];
 
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
-        if (child->type == NODE_NUMERIC_LITERAL) {
-            inds[i] = atoi(child->data);
+        if (child->type == NODE_EXPRESSION) {
+            indices[ind] = visit_node_expression(child, lexer, module, builder);
+            ind++;
         }
-    }
-
-    for (size_t i = 0; i < num_dimensions; i++) {
-        indices[i] = LLVMConstInt(LLVMInt32Type(), inds[i], false);
     }
 
     LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, num_dimensions, "geptmp");
