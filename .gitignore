@@ -3,6 +3,10 @@ compile_commands.json
 .vscode
 *.syn
 *.synh
-*.ps1
-main.syn.exe
+run.ps1
+run.sh
 main.syn.ll
+t.c
+t.exe
+t
+t.o
