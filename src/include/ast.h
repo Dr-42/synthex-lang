@@ -16,7 +16,8 @@ void ast_destroy(AST* ast);
 
 void ast_print(AST* ast);
 void ast_print_declarations();
-void ast_error(Token* token, char* message, ...);
+void _ast_error(int src_line, char* src_file, Token* token, char* message, ...);
+#define ast_error(token, message, ...) _ast_error(__LINE__, __FILE__, token, message, ##__VA_ARGS__)
 
 void ast_build(AST* ast, Lexer* lexer);
 Node* ast_parse_program(Lexer* lexer);

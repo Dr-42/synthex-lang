@@ -66,10 +66,10 @@ void ast_print_declarations() {
     }
 }
 
-void ast_error(Token* token, char* message, ...) {
+void _ast_error(int src_line, char* file, Token* token, char* message, ...) {
     va_list args;
     va_start(args, message);
-    fprintf(stderr, "%s:%zu:%zu: ", token->filename, token->line, token->column);
+    fprintf(stderr, "%s:%d %s:%zu:%zu: ", file, src_line, token->filename, token->line, token->column);
     vfprintf(stderr, message, args);
     fprintf(stderr, "\n");
     va_end(args);
