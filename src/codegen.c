@@ -71,6 +71,8 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
 
     // Emit .ll file
     char* ll_filename = strcat(lexer->filename, ".ll");
+    // delete the file if exists
+    remove(ll_filename);
     LLVMPrintModuleToFile(module, ll_filename, &error);
     if (error) {
         printf("Error: %s\n", error);
@@ -291,7 +293,7 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
                 visit_node_block_statement(child, lexer, module, builder, func, return_type);
             }
         }
-        // free(arg_names);
+        free(arg_names);
     }
 }
 
