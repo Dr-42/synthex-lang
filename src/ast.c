@@ -634,7 +634,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 Node* ast_parse_expression(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* expression = create_node(NODE_EXPRESSION, NULL);
-    bool encountered_opening_parenthesis = false;
+    size_t paren_count = 0;
     while (true) {
         token = lexer_peek_token(lexer, 0);
 
@@ -688,14 +688,20 @@ Node* ast_parse_expression(Lexer* lexer) {
             case TOKEN_PUNCTUATION:
                 if (strcmp(token->value, "(") == 0) {
                     lexer_advance_cursor(lexer, 1);
-                    encountered_opening_parenthesis = true;
-                    node_add_child(expression, ast_parse_expression(lexer));
+                    paren_count++;
+                    Node* paren_expression = ast_parse_expression(lexer);
+                    node_add_child(expression, paren_expression);
                     continue;
                 } else if (strcmp(token->value, ")") == 0) {
-                    if (encountered_opening_parenthesis) {
-                        lexer_advance_cursor(lexer, 1);
+                    if (paren_count == 0) {
+                        return expression;
+                    } else {
+                        paren_count--;
+                        if (paren_count == 0) {
+                            lexer_advance_cursor(lexer, 1);
+                            return expression;
+                        }
                     }
-                    return expression;
                 } else if (strcmp(token->value, ",") == 0) {
                     lexer_advance_cursor(lexer, 1);
                     return expression;
@@ -710,8 +716,9 @@ Node* ast_parse_expression(Lexer* lexer) {
                 break;
             case TOKEN_COMMENT:
                 break;
-            default:
+            default: {
                 ast_error(token, "Unexpected token in expression: %s\n", token->value);
+            }
         }
         lexer_advance_cursor(lexer, 1);
     }
