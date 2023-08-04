@@ -28,7 +28,7 @@ const char *keywords[] = {
     "pub",
     "prv",
     "const",
-    "stat"
+    "stat",
     "as",
     "null",
 };
