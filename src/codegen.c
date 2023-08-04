@@ -176,8 +176,6 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
                 fprintf(stderr, "Error: Continue statement outside of loop\n");
             }
             break;
-        case NODE_COMMENT:
-            break;
         default:
             printf("Unknown node type: %s\n", node_type_to_string(node->type));
             break;

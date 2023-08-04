@@ -282,15 +282,6 @@ Token *lexer_next_token(Lexer *lexer) {
             }
         }
 
-        // Match operators
-        for (uint32_t i = 0; i < OPERATOR_COUNT; i++) {
-            if (strncmp(&lexer->contents[lexer->index], operators[i], strlen(operators[i])) == 0) {
-                lexer->index += strlen(operators[i]);
-                lexer->column += strlen(operators[i]);
-                return lexer_create_token(lexer, TOKEN_OPERATOR, lexer->index - strlen(operators[i]), lexer->index);
-            }
-        }
-
         // Match comments (simplified: only single-line comments are considered)
         if (c == '/' && lexer->contents[lexer->index + 1] == '/') {
             size_t start = lexer->index;
@@ -311,6 +302,15 @@ Token *lexer_next_token(Lexer *lexer) {
             lexer->index += 2;
             lexer->column += 2;
             return lexer_create_token(lexer, TOKEN_COMMENT, start, lexer->index);
+        }
+
+        // Match operators
+        for (uint32_t i = 0; i < OPERATOR_COUNT; i++) {
+            if (strncmp(&lexer->contents[lexer->index], operators[i], strlen(operators[i])) == 0) {
+                lexer->index += strlen(operators[i]);
+                lexer->column += strlen(operators[i]);
+                return lexer_create_token(lexer, TOKEN_OPERATOR, lexer->index - strlen(operators[i]), lexer->index);
+            }
         }
 
         lexer->index++;

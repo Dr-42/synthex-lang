@@ -169,6 +169,7 @@ Node* ast_parse_statement(Lexer* lexer) {
         }
     } else if (token->type == TOKEN_COMMENT) {
         statement = create_node(NODE_COMMENT, token->value);
+        lexer_advance_cursor(lexer, 1);
     } else {
         ast_error(token, "Unexpected token: %s\n", token->value);
     }
@@ -392,6 +393,8 @@ Node* ast_parse_block(Lexer* lexer) {
         Node* statement = ast_parse_statement(lexer);
         if (statement == NULL) {
             break;
+        } else if (statement->type == NODE_COMMENT) {
+            destroy_node(statement);
         } else {
             node_add_child(block, statement);
         }
