@@ -694,7 +694,15 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
             case TOKEN_IDENTIFIER: {
                 Token* next_tok = lexer_peek_token(lexer, 1);
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
-                    node_add_child(expression, ast_parse_call_expression(lexer));
+                    // Check if the function call returns void
+                    for (size_t i = 0; i < declared_functions_count; i++) {
+                        if (strcmp(declared_functions[i].name, token->value) == 0) {
+                            if (strcmp(declared_functions[i].return_type, "void") == 0) {
+                                ast_error(token, "Cannot use void function \"%s\" in expression\n", token->value);
+                            }
+                        }
+                    }
+                    Node* call_exp = ast_parse_call_expression(lexer);
                 } else if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "[") == 0) {
                     lexer_advance_cursor(lexer, 1);
                     Node* array_element = create_node(NODE_ARRAY_ELEMENT, token->value);
