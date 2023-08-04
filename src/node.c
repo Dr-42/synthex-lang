@@ -40,24 +40,6 @@ void node_add_child(Node* parent, Node* child) {
     child->parent = parent;
 }
 
-/*
-void print_node(Node* node, int indent) {
-    for (int i = 0; i < indent - 1; i++) {
-        printf("%s%s%s", ANSI_COLOR_GREEN, "| ", ANSI_COLOR_RESET);
-    }
-    if (indent > 0) {
-        printf("%s%s%s", ANSI_COLOR_GREEN, "|_", ANSI_COLOR_RESET);
-    }
-    printf("%s%s%s", ANSI_COLOR_MAGENTA, node_type_to_string(node->type), ANSI_COLOR_RESET);
-    if (node->data != NULL) {
-        printf("%s %s%s", ANSI_COLOR_RED, (char*)node->data, ANSI_COLOR_RESET);
-    }
-    printf("\n");
-    for (size_t i = 0; i < node->num_children; i++) {
-        print_node(node->children[i], indent + 1);
-    }
-}
-*/
 void print_node(Node* node, bool* indents, int indent) {
     for (int i = 0; i < indent - 1; i++) {
         printf("%s%s%s", ANSI_COLOR_GREEN, indents[i] ? "| " : "  ", ANSI_COLOR_RESET);

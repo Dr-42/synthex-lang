@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#define array_length(array) (sizeof(array) / sizeof(array[0]))
+
 extern const char* keywords[];
 extern const size_t KEYWORD_COUNT;
 
@@ -30,6 +32,18 @@ size_t declared_arrays_count = 0;
 size_t declared_array_dims[100];
 Function declared_functions[100];
 size_t declared_functions_count = 0;
+
+void node_error(Node* node, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, "Error :");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    bool idents[50] = {false};
+    print_node(node, idents, 0);
+    va_end(args);
+    exit(1);
+}
 
 AST* ast_create() {
     AST* ast = calloc(1, sizeof(AST));
@@ -631,7 +645,44 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     return NULL;
 }
 
-Node* ast_parse_expression(Lexer* lexer) {
+const char* unary_precedence[] = {
+    "~",
+    "!",
+    "-",
+    "+",
+    "--",
+    "++",
+};
+
+const char* binary_precedence[] = {
+    "...",
+    "%=",
+    "/=",
+    "*=",
+    "-=",
+    "+=",
+    "=",
+    "||",
+    "&&",
+    "|",
+    "^",
+    "&",
+    "!=",
+    "==",
+    ">=",
+    ">",
+    "<=",
+    "<",
+    ">>",
+    "<<",
+    "-",
+    "+",
+    "%",
+    "/",
+    "*",
+};
+
+Node* ast_parse_expression_flat(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* expression = create_node(NODE_EXPRESSION, NULL);
     size_t paren_count = 0;
@@ -724,6 +775,108 @@ Node* ast_parse_expression(Lexer* lexer) {
     }
 
     return expression;
+}
+
+Node* ast_expression_descent(Node* expression) {
+    if (expression->type != NODE_EXPRESSION) {
+        return expression;
+    }
+
+    if (expression->num_children == 0) {
+        node_error(expression, "Empty expression");
+    } else if (expression->num_children == 1) {
+        Node* child = expression->children[0];
+        if (child->type == NODE_EXPRESSION) {
+            return ast_expression_descent(child);
+        } else {
+            return expression;
+        }
+    } else if (expression->num_children == 2) {
+        bool has_unary = false;
+        for (size_t i = 0; i < expression->num_children; i++) {
+            Node* child = expression->children[i];
+            if (child->type == NODE_OPERATOR) {
+                for (size_t j = 0; j < array_length(unary_precedence); j++) {
+                    if (strcmp(child->data, unary_precedence[j]) == 0) {
+                        has_unary = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (has_unary) {
+            return expression;
+        } else {
+            node_error(expression, "Expected unary operator in expression of length 2");
+        }
+    } else if (expression->num_children == 3) {
+        bool has_binary = false;
+        for (size_t i = 0; i < expression->num_children; i++) {
+            Node* child = expression->children[i];
+            if (child->type == NODE_OPERATOR) {
+                for (size_t j = 0; j < array_length(binary_precedence); j++) {
+                    if (strcmp(child->data, binary_precedence[j]) == 0) {
+                        has_binary = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (has_binary) {
+            return expression;
+        } else {
+            node_error(expression, "Expected binary operator in expression of length 3");
+        }
+    } else {
+        // expression->num_children > 3
+        // We need to find the lowest precedence operator
+        // and split the expression into two expressions
+        // at that operator
+        int lowest_precedence = 100;
+        int lowest_precedence_idx = -1;
+        for (size_t i = 0; i < expression->num_children; i++) {
+            Node* child = expression->children[i];
+            if (child->type == NODE_OPERATOR) {
+                for (size_t j = 0; j < array_length(binary_precedence); j++) {
+                    if (strcmp(child->data, binary_precedence[j]) == 0) {
+                        if (j < lowest_precedence) {
+                            lowest_precedence = j;
+                            lowest_precedence_idx = i;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (lowest_precedence_idx == -1) {
+            node_error(expression, "Expected binary operator in expression of length > 3");
+        }
+        Node* left_expression = create_node(NODE_EXPRESSION, NULL);
+        Node* right_expression = create_node(NODE_EXPRESSION, NULL);
+        for (size_t i = 0; i < expression->num_children; i++) {
+            Node* child = expression->children[i];
+            if (i < lowest_precedence_idx) {
+                node_add_child(left_expression, child);
+            } else if (i > lowest_precedence_idx) {
+                node_add_child(right_expression, child);
+            }
+        }
+        Node* operator= expression->children[lowest_precedence_idx];
+        Node* new_expression = create_node(NODE_EXPRESSION, NULL);
+        node_add_child(new_expression, ast_expression_descent(left_expression));
+        node_add_child(new_expression, operator);
+        node_add_child(new_expression, ast_expression_descent(right_expression));
+        return new_expression;
+    }
+    fprintf(stderr, "Error: Unreachable code\n");
+    exit(1);
+    return NULL;
+}
+
+Node* ast_parse_expression(Lexer* lexer) {
+    Node* expression = ast_parse_expression_flat(lexer);
+    Node* new_expression = ast_expression_descent(expression);
+    return new_expression;
 }
 
 Node* ast_parse_array_index(Lexer* lexer) {
