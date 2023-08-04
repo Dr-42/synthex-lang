@@ -931,7 +931,13 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
         }
     }
 
-    LLVMValueRef ret = LLVMBuildCall2(builder, function_type, function, args, num_args, "calltmp");
+    // Check if the function is void
+    LLVMValueRef ret;
+    if (LLVMGetTypeKind(ret_type) == LLVMVoidTypeKind) {
+        return LLVMBuildCall2(builder, function_type, function, args, num_args, "");
+    } else {
+        ret = LLVMBuildCall2(builder, function_type, function, args, num_args, "calltmp");
+    }
     free(param_types);  // free parameter types
     free(args);
     return ret;

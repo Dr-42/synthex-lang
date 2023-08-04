@@ -137,6 +137,7 @@ Node* ast_parse_statement(Lexer* lexer) {
         Token* next_token = lexer_peek_token(lexer, 1);
         if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, "(") == 0) {
             statement = ast_parse_call_expression(lexer);
+            lexer_advance_cursor(lexer, 1);
         } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, ":") == 0) {
             next_token = lexer_peek_token(lexer, 2);
             if (next_token->type == TOKEN_TYPEANNOTATION) {
