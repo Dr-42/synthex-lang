@@ -664,7 +664,7 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                 continue;
             case NODE_OPERATOR: {
                 if (node->num_children < 2) {
-                    fprintf(stderr, "Error: Operator '%s' could not be applied\n", node->data);
+                    fprintf(stderr, "Error: Operator '%s' could not be applied\n", (char*)node->data);
                     exit(1);
                     return NULL;
                 } else if (node->num_children == 2) {
@@ -680,7 +680,7 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                     lhs = visit_node_binary_operator(child, lexer, module, builder, lhs, value2);
                     i++;
                 } else {
-                    fprintf(stderr, "Error: Operator '%s' could not be applied\n", node->data);
+                    fprintf(stderr, "Error: Operator '%s' could not be applied\n", (char*)node->data);
                     fprintf(stderr, "Error: Node with %lu children\n", node->num_children);
                     exit(1);
                     return NULL;
