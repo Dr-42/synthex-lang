@@ -828,6 +828,46 @@ Node* ast_expression_descent(Node* expression) {
             node_error(expression, "Expected binary operator in expression of length 3");
         }
     } else {
+        // Deal with all the unary operators first
+        for (size_t i = 0; i < expression->num_children; i++) {
+            Node* child = expression->children[i];
+            Node* next_child = expression->children[i + 1];
+
+            if (i == 0 && child->type == NODE_OPERATOR) {
+                if (next_child->type == NODE_OPERATOR) {
+                    node_error(expression, "Two operators in a row at the beginning of expression");
+                } else {
+                    for (size_t j = 0; j < array_length(unary_precedence); j++) {
+                        if (strcmp(child->data, unary_precedence[j]) == 0) {
+                            Node* new_expression = create_node(NODE_EXPRESSION, NULL);
+                            node_add_child(new_expression, child);
+                            node_add_child(new_expression, next_child);
+                            expression->children[i] = new_expression;
+                            for (size_t k = i + 1; k < expression->num_children; k++) {
+                                expression->children[k] = expression->children[k + 1];
+                            }
+                            expression->num_children--;
+                        }
+                    }
+                }
+            } else {
+                if (child->type == NODE_OPERATOR && next_child->type == NODE_OPERATOR) {
+                    for (size_t j = 0; j < array_length(unary_precedence); j++) {
+                        if (strcmp(child->data, unary_precedence[j]) == 0) {
+                            Node* new_expression = create_node(NODE_EXPRESSION, NULL);
+                            node_add_child(new_expression, next_child);
+                            node_add_child(new_expression, expression->children[i + 2]);
+
+                            expression->children[i + 1] = new_expression;
+                            for (size_t k = i + 2; k < expression->num_children; k++) {
+                                expression->children[k] = expression->children[k + 1];
+                            }
+                            expression->num_children--;
+                        }
+                    }
+                }
+            }
+        }
         // expression->num_children > 3
         // We need to find the lowest precedence operator
         // and split the expression into two expressions

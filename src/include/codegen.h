@@ -17,7 +17,8 @@ LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef modul
 void visit_node_type(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type);
 LLVMValueRef visit_node_return_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMTypeRef return_type);
-LLVMValueRef visit_node_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2);
+LLVMValueRef visit_node_unary_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1);
+LLVMValueRef visit_node_binary_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2);
 void visit_node_array_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);

@@ -554,7 +554,38 @@ LLVMValueRef visit_node_return_statement(Node* node, Lexer* lexer, LLVMModuleRef
     return value;
 }
 
-LLVMValueRef visit_node_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2) {
+LLVMValueRef visit_node_unary_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1) {
+    const char* op = node->data;
+
+    if (value1 == NULL) {
+        printf("Error: Operator '%s' could not be applied\n", op);
+        return NULL;
+    }
+
+    LLVMTypeRef value1_type = LLVMTypeOf(value1);
+
+    if (LLVMGetTypeKind(value1_type) == LLVMIntegerTypeKind) {
+        if (strcmp(op, "-") == 0) {
+            return LLVMBuildNeg(builder, value1, "negtmp");
+        } else if (strcmp(op, "!") == 0) {
+            return LLVMBuildNot(builder, value1, "nottmp");
+        } else {
+            printf("Error: Unsupported operator '%s'\n", op);
+        }
+    } else if (LLVMGetTypeKind(value1_type) == LLVMFloatTypeKind) {
+        if (strcmp(op, "-") == 0) {
+            return LLVMBuildFNeg(builder, value1, "negtmp");
+        } else {
+            printf("Error: Unsupported operator '%s'\n", op);
+        }
+    } else {
+        printf("Error: Unsupported type %s\n", LLVMPrintTypeToString(value1_type));
+    }
+
+    return NULL;
+}
+
+LLVMValueRef visit_node_binary_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2) {
     const char* op = node->data;
 
     if (value1 == NULL || value2 == NULL) {
@@ -632,11 +663,28 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                 lhs = visit_node_identifier(child, lexer, module, builder, true);
                 continue;
             case NODE_OPERATOR: {
-                Node* rhs;
-                rhs = node->children[i + 1];
-                LLVMValueRef value2 = visit_node(rhs, lexer, module, builder);
-                lhs = visit_node_operator(child, lexer, module, builder, lhs, value2);
-                i++;
+                if (node->num_children < 2) {
+                    fprintf(stderr, "Error: Operator '%s' could not be applied\n", node->data);
+                    exit(1);
+                    return NULL;
+                } else if (node->num_children == 2) {
+                    Node* rhs;
+                    rhs = node->children[i + 1];
+                    LLVMValueRef operand = visit_node(rhs, lexer, module, builder);
+                    lhs = visit_node_unary_operator(child, lexer, module, builder, operand);
+                    i++;
+                } else if (node->num_children == 3) {
+                    Node* rhs;
+                    rhs = node->children[i + 1];
+                    LLVMValueRef value2 = visit_node(rhs, lexer, module, builder);
+                    lhs = visit_node_binary_operator(child, lexer, module, builder, lhs, value2);
+                    i++;
+                } else {
+                    fprintf(stderr, "Error: Operator '%s' could not be applied\n", node->data);
+                    fprintf(stderr, "Error: Node with %lu children\n", node->num_children);
+                    exit(1);
+                    return NULL;
+                }
                 continue;
             }
             case NODE_CALL_EXPRESSION:
