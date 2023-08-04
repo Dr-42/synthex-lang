@@ -703,6 +703,7 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                         }
                     }
                     Node* call_exp = ast_parse_call_expression(lexer);
+                    node_add_child(expression, call_exp);
                 } else if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "[") == 0) {
                     lexer_advance_cursor(lexer, 1);
                     Node* array_element = create_node(NODE_ARRAY_ELEMENT, token->value);
