@@ -90,6 +90,7 @@ const char *punctuation[] = {
     ",",
     ";",
     ":",
+    "`",
 };
 
 const char *comments[] = {

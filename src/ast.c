@@ -27,6 +27,9 @@ typedef struct Variable {
 
 Variable declared_variables[100];
 size_t declared_variables_count = 0;
+Variable declared_pointers[100];
+size_t declared_pointers_count = 0;
+
 Variable declared_arrays[100];
 size_t declared_arrays_count = 0;
 size_t declared_array_dims[100];
@@ -141,7 +144,11 @@ Node* ast_parse_statement(Lexer* lexer) {
         } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, ":") == 0) {
             next_token = lexer_peek_token(lexer, 2);
             if (next_token->type == TOKEN_TYPEANNOTATION) {
-                statement = ast_parse_variable_declaration(lexer);
+                if (strcmp(next_token->value, "ptr") == 0) {
+                    statement = ast_parse_pointer_declaration(lexer);
+                } else {
+                    statement = ast_parse_variable_declaration(lexer);
+                }
             } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, "[") == 0) {
                 statement = ast_parse_array_declaration(lexer);
             } else {
@@ -158,6 +165,11 @@ Node* ast_parse_statement(Lexer* lexer) {
             for (size_t i = 0; i < declared_arrays_count; i++) {
                 if (strcmp(declared_arrays[i].name, token->value) == 0) {
                     return ast_parse_array_assignment(lexer);
+                }
+            }
+            for (size_t i = 0; i < declared_pointers_count; i++) {
+                if (strcmp(declared_pointers[i].name, token->value) == 0) {
+                    return ast_parse_assignment(lexer);
                 }
             }
 
@@ -520,11 +532,20 @@ Node* ast_parse_assignment(Lexer* lexer) {
             ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
         }
 
-        for (size_t i = 0; i < declared_variables_count; i++) {
-            if (strcmp(declared_variables[i].name, identifier->data) == 0) {
+        bool is_pointer = false;
+        for (size_t i = 0; i < declared_pointers_count; i++) {
+            if (strcmp(declared_pointers[i].name, identifier->data) == 0) {
+                is_pointer = true;
                 break;
-            } else if (i == declared_variables_count - 1) {
-                ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
+            }
+        }
+        if (!is_pointer) {
+            for (size_t i = 0; i < declared_variables_count; i++) {
+                if (strcmp(declared_variables[i].name, identifier->data) == 0) {
+                    break;
+                } else if (i == declared_variables_count - 1) {
+                    ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
+                }
             }
         }
 
@@ -649,11 +670,77 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     return NULL;
 }
 
+Node* ast_parse_pointer_type(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    assert(token->type == TOKEN_TYPEANNOTATION && strcmp(token->value, "ptr") == 0);
+    Node* pointer_type = create_node(NODE_TYPE, token->value);
+    lexer_advance_cursor(lexer, 1);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_OPERATOR || strcmp(token->value, "<") != 0) {
+        ast_error(token, "Expected opening angle bracket after pointer type, got %s\n", token->value);
+    }
+    lexer_advance_cursor(lexer, 1);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_TYPEANNOTATION) {
+        ast_error(token, "Expected type annotation after opening angle bracket in pointer type, got %s\n", token->value);
+    }
+    if (strcmp(token->value, "ptr") == 0) {
+        Node* nested_pointer_type = ast_parse_pointer_type(lexer);
+        node_add_child(pointer_type, nested_pointer_type);
+    } else {
+        Node* type = create_node(NODE_TYPE, token->value);
+        node_add_child(pointer_type, type);
+        lexer_advance_cursor(lexer, 1);
+    }
+
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_OPERATOR || strcmp(token->value, ">") != 0) {
+        ast_error(token, "Expected closing angle bracket after pointer type, got %s\n", token->value);
+    }
+    lexer_advance_cursor(lexer, 1);
+    return pointer_type;
+}
+
+Node* ast_parse_pointer_declaration(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    assert(token->type == TOKEN_IDENTIFIER);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    token = lexer_peek_token(lexer, 1);
+    assert(token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") == 0);
+    lexer_advance_cursor(lexer, 2);
+    token = lexer_peek_token(lexer, 0);
+    assert(token->type == TOKEN_TYPEANNOTATION && strcmp(token->value, "ptr") == 0);
+    Node* type = ast_parse_pointer_type(lexer);
+    Node* pointer_declaration = create_node(NODE_POINTER_DECLARATION, NULL);
+    node_add_child(pointer_declaration, identifier);
+    node_add_child(pointer_declaration, type);
+
+    declared_pointers[declared_pointers_count].name = identifier->data;
+    declared_pointers[declared_pointers_count].type = type->data;
+    declared_pointers_count++;
+
+    token = lexer_peek_token(lexer, 0);
+    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
+        lexer_advance_cursor(lexer, 1);
+        return pointer_declaration;
+    } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+        lexer_advance_cursor(lexer, -1);
+        tokens[lexer->index].type = TOKEN_IDENTIFIER;
+        tokens[lexer->index].value = identifier->data;
+        return pointer_declaration;
+    } else {
+        ast_error(token, "Expected semicolon or assignment operator after pointer declaration, got %s\n", token->value);
+        exit(1);
+    }
+}
+
 const char* unary_precedence[] = {
     "~",
     "!",
     "-",
     "+",
+    "&",
+    "*",
     "--",
     "++",
 };
