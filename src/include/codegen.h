@@ -9,6 +9,7 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
 void visit_node_program(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_variable_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
+void visit_node_pointer_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder);
 void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type);
 void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type);

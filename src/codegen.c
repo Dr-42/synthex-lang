@@ -1,5 +1,6 @@
 #include "codegen.h"
 
+#include <assert.h>
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/LLJIT.h>
@@ -31,6 +32,12 @@ const char* current_scope_array_names[100] = {0};
 size_t current_scope_array_dims[100] = {0};
 size_t current_scope_array_count = 0;
 
+LLVMValueRef current_scope_pointers[100] = {0};
+LLVMTypeRef current_scope_pointer_types[100] = {0};
+const char* current_scope_pointer_names[100] = {0};
+LLVMTypeRef current_scope_pointer_base_types[100] = {0};
+size_t current_scope_pointer_count = 0;
+
 LLVMBasicBlockRef while_merge_block = NULL;
 LLVMBasicBlockRef while_cond_block = NULL;
 
@@ -46,11 +53,12 @@ void convert_all_types(LLVMContextRef ctx) {
     llvm_types[7] = LLVMInt8TypeInContext(ctx);
     llvm_types[8] = LLVMInt1TypeInContext(ctx);
     llvm_types[9] = LLVMVoidTypeInContext(ctx);
-    llvm_types[10] = LLVMPointerTypeInContext(ctx, 0);
+    llvm_types[10] = NULL;
 }
 
 void ast_to_llvm(AST* ast, Lexer* lexer) {
     LLVMContextRef ctx = LLVMContextCreate();
+    LLVMContextSetOpaquePointers(ctx, false);
     LLVMModuleRef module = LLVMModuleCreateWithNameInContext(lexer->filename, ctx);
     LLVMBuilderRef builder = LLVMCreateBuilderInContext(ctx);
 
@@ -59,6 +67,7 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
     visit_node(ast->root, lexer, module, builder);
 
     char* error = NULL;
+    LLVMDumpModule(module);
     LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
     LLVMDisposeMessage(error);
     // set target triple for module
@@ -78,8 +87,6 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
         printf("Error: %s\n", error);
         LLVMDisposeMessage(error);
     }
-
-    LLVMDumpModule(module);
 
     LLVMRemoveModule(engine, module, &module, &error);
     if (error) {
@@ -104,6 +111,9 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
             break;
         case NODE_FUNCTION_DECLARATION:
             visit_node_function_declaration(node, lexer, module, builder);
+            break;
+        case NODE_POINTER_DECLARATION:
+            visit_node_pointer_declaration(node, lexer, module, builder);
             break;
         case NODE_FUNCTION_ARGUMENT:
             visit_node_function_argument(node, lexer, module, builder);
@@ -292,6 +302,67 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
             }
         }
         free(arg_names);
+    }
+}
+
+void visit_node_pointer_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    LLVMTypeRef type;
+    char* var_name = NULL;
+    LLVMTypeRef base_data_type = NULL;
+    size_t pointer_degree = 1;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_IDENTIFIER) {
+            var_name = child->data;
+        } else if (child->type == NODE_TYPE) {
+            assert(strcmp(child->data, "ptr") == 0);
+            // Find the pointer type. The child of the pointer type node is the type
+            // If the child is a ptr type, then the child of the ptr type node is the type and so on
+            Node* type_node = child->children[0];
+            bool is_ptr = false;
+            while (!is_ptr) {
+                if (strcmp(type_node->data, "ptr") == 0) {
+                    type_node = type_node->children[0];
+                    pointer_degree++;
+                } else {
+                    is_ptr = true;
+                }
+            }
+
+            for (size_t j = 0; j < TYPE_COUNT; j++) {
+                if (strcmp(type_node->data, types[j]) == 0) {
+                    base_data_type = llvm_types[j];
+                    break;
+                }
+            }
+        }
+    }
+
+    if (base_data_type == NULL) {
+        printf("Error: Pointer '%s' could not be declared due to empty base data type\n", var_name);
+        return;
+    }
+
+    type = base_data_type;
+    LLVMTypeRef base_type = NULL;
+    for (size_t i = 0; i < pointer_degree; i++) {
+        base_type = type;
+        type = LLVMPointerType(type, 0);
+    }
+
+    if (var_name != NULL) {
+        // Allocate variable
+        LLVMValueRef pointer = LLVMBuildAlloca(builder, type, var_name);
+        //  Add pointer to current scope
+        current_scope_pointers[current_scope_pointer_count] = pointer;
+        current_scope_pointer_names[current_scope_pointer_count] = var_name;
+        current_scope_pointer_types[current_scope_pointer_count] = type;
+        current_scope_pointer_base_types[current_scope_pointer_count] = base_type;
+        current_scope_pointer_count++;
+
+    } else {
+        printf("Error: Variable '%s' could not be declared\n", var_name);
     }
 }
 
@@ -507,6 +578,19 @@ LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef modul
         }
     }
 
+    // Check if pointer is in the current scope
+    if (value == NULL) {
+        for (int i = 0; i < current_scope_pointer_count; i++) {
+            if (strcmp(current_scope_pointer_names[i], identifier) == 0) {
+                value = current_scope_pointers[i];
+                if (deref) {
+                    value = LLVMBuildLoad2(builder, current_scope_pointer_types[i], value, identifier);
+                }
+                break;
+            }
+        }
+    }
+
     if (value == NULL) {
         printf("Error: Variable '%s' not found\n", identifier);
         return NULL;
@@ -561,6 +645,16 @@ LLVMValueRef visit_node_unary_operator(Node* node, Lexer* lexer, LLVMModuleRef m
     }
 
     LLVMTypeRef value1_type = LLVMTypeOf(value1);
+
+    if (strcmp(op, "&") == 0) {
+        return value1;
+    } else if (strcmp(op, "*") == 0) {
+        // Dereference
+        // This is a hacky way to dereference a pointer
+        LLVMValueRef deref1 = LLVMBuildLoad2(builder, LLVMGetElementType(value1_type), value1, "deref");
+        LLVMValueRef deref2 = LLVMBuildLoad2(builder, LLVMGetElementType(LLVMGetElementType(value1_type)), deref1, "deref");
+        return deref2;
+    }
 
     if (LLVMGetTypeKind(value1_type) == LLVMIntegerTypeKind) {
         if (strcmp(op, "-") == 0) {
@@ -669,6 +763,10 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                     Node* rhs;
                     rhs = node->children[i + 1];
                     LLVMValueRef operand = visit_node(rhs, lexer, module, builder);
+                    // Weird hack to get the type of the operand
+                    if (strcmp((char*)child->data, "&") == 0 || strcmp((char*)child->data, "*") == 0) {
+                        operand = visit_node_identifier(rhs, lexer, module, builder, false);
+                    }
                     lhs = visit_node_unary_operator(child, lexer, module, builder, operand);
                     i++;
                 } else if (node->num_children == 3) {
