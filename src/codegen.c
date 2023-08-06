@@ -115,6 +115,8 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
         case NODE_POINTER_DECLARATION:
             visit_node_pointer_declaration(node, lexer, module, builder);
             break;
+        case NODE_POINTER_DEREF:
+            visit_node_pointer_deref(node, lexer, module, builder);
         case NODE_FUNCTION_ARGUMENT:
             visit_node_function_argument(node, lexer, module, builder);
             break;
@@ -401,6 +403,44 @@ void visit_node_pointer_declaration(Node* node, Lexer* lexer, LLVMModuleRef modu
     } else {
         printf("Error: Variable '%s' could not be declared\n", var_name);
     }
+}
+
+void visit_node_pointer_deref(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+    const char* pointer_name = node->data;
+    LLVMValueRef pointer = NULL;
+    size_t idx = 0;
+    bool found = false;
+    for (size_t i = 0; i < current_scope_pointer_count; i++) {
+        if (strcmp(pointer_name, current_scope_pointer_names[i]) == 0) {
+            pointer = current_scope_pointers[i];
+            found = true;
+            idx = i;
+            break;
+        }
+    }
+
+    // Check if the pointer is one of the function arguments
+    uint32_t arg_count = LLVMCountParams(current_function);
+    if (!found) {
+        for (size_t i = 0; i < arg_count; i++) {
+            LLVMValueRef arg = LLVMGetParam(current_function, i);
+            const char* arg_name = LLVMGetValueName(arg);
+            if (strcmp(pointer_name, arg_name) == 0) {
+                pointer = arg;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        printf("Error: Pointer '%s' could not be dereferenced\n", pointer_name);
+        return;
+    }
+    Node* expression = node->children[0];
+    LLVMValueRef value = visit_node_expression(expression, lexer, module, builder);
+    LLVMBuildStore(builder, value, pointer);
+    return;
 }
 
 void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
