@@ -268,12 +268,49 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
                     continue;
                 }
                 Node* type_node = child->children[0];
-                for (size_t j = 0; j < TYPE_COUNT; j++) {
-                    if (strcmp(type_node->data, types[j]) == 0) {
-                        arg_types[arg_index] = llvm_types[j];  // Corrected line
-                        arg_names[arg_index] = child->data;    // Corrected line
-                        arg_index++;                           // Increment the index after assigning values
-                        break;
+                if (strcmp(type_node->data, "ptr") == 0) {
+                    LLVMTypeRef base_data_type = NULL;
+                    size_t pointer_degree = 0;
+                    LLVMTypeRef type;
+                    bool is_ptr = false;
+                    while (!is_ptr) {
+                        if (strcmp(type_node->data, "ptr") == 0) {
+                            type_node = type_node->children[0];
+                            pointer_degree++;
+                        } else {
+                            is_ptr = true;
+                        }
+                    }
+
+                    for (size_t j = 0; j < TYPE_COUNT; j++) {
+                        if (strcmp(type_node->data, types[j]) == 0) {
+                            base_data_type = llvm_types[j];
+                            break;
+                        }
+                    }
+                    if (base_data_type == NULL) {
+                        fprintf(stderr, "Error: Pointer '%s' could not be declared due to empty base data type\n", func_name);
+                        return;
+                    }
+
+                    type = base_data_type;
+                    LLVMTypeRef base_type = NULL;
+                    for (size_t i = 0; i < pointer_degree; i++) {
+                        base_type = type;
+                        type = LLVMPointerType(type, 0);
+                    }
+
+                    arg_types[arg_index] = type;
+                    arg_names[arg_index] = child->data;
+                    arg_index++;
+                } else {
+                    for (size_t j = 0; j < TYPE_COUNT; j++) {
+                        if (strcmp(type_node->data, types[j]) == 0) {
+                            arg_types[arg_index] = llvm_types[j];  // Corrected line
+                            arg_names[arg_index] = child->data;    // Corrected line
+                            arg_index++;                           // Increment the index after assigning values
+                            break;
+                        }
                     }
                 }
             }
@@ -618,8 +655,16 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
             visit_node(node->children[i], lexer, module, block_builder);
         }
     }
-    if (return_value != NULL) {
-        LLVMBuildRet(block_builder, return_value);
+    if (LLVMGetTypeKind(return_type) == LLVMVoidTypeKind) {
+        LLVMBuildRetVoid(block_builder);
+    } else {
+        if (return_value != NULL) {
+            if (LLVMGetTypeKind(return_type) == LLVMVoidTypeKind) {
+                fprintf(stderr, "Error: Return statement in void function\n");
+            } else {
+                LLVMBuildRet(block_builder, return_value);
+            }
+        }
     }
     LLVMDisposeBuilder(block_builder);
 }

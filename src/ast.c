@@ -182,6 +182,12 @@ Node* ast_parse_statement(Lexer* lexer) {
     } else if (token->type == TOKEN_COMMENT) {
         statement = create_node(NODE_COMMENT, token->value);
         lexer_advance_cursor(lexer, 1);
+    } else if (token->type == TOKEN_OPERATOR) {
+        if (strcmp(token->value, "*") == 0) {
+            statement = ast_parse_pointer_deref(lexer);
+        } else {
+            ast_error(token, "Unexpected operator: %s\n", token->value);
+        }
     } else {
         ast_error(token, "Unexpected token: %s\n", token->value);
     }
@@ -295,13 +301,21 @@ Node* ast_parse_function_argument(Lexer* lexer) {
     if (token->type != TOKEN_TYPEANNOTATION) {
         ast_error(token, "Expected type identifier after function argument type declaration, got %s\n", token->value);
     }
-    Node* type = create_node(NODE_TYPE, token->value);
+    lexer_advance_cursor(lexer, 2);
+    Node* type = NULL;
+    if (strcmp(token->value, "ptr") == 0) {
+        token = lexer_peek_token(lexer, 0);
+        type = ast_parse_pointer_type(lexer);
+    } else {
+        type = create_node(NODE_TYPE, token->value);
+        lexer_advance_cursor(lexer, 1);
+    }
     node_add_child(argument, type);
-    token = lexer_peek_token(lexer, 3);
+    token = lexer_peek_token(lexer, 0);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ",") == 0) {
-        lexer_advance_cursor(lexer, 4);
+        lexer_advance_cursor(lexer, 1);
     } else if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ")") == 0) {
-        lexer_advance_cursor(lexer, 3);
+        lexer_advance_cursor(lexer, 0);
     } else {
         ast_error(token, "Expected comma or closing parenthesis after function argument, got %s\n", token->value);
     }
@@ -732,6 +746,31 @@ Node* ast_parse_pointer_declaration(Lexer* lexer) {
         ast_error(token, "Expected semicolon or assignment operator after pointer declaration, got %s\n", token->value);
         exit(1);
     }
+}
+
+Node* ast_parse_pointer_deref(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    assert(token->type == TOKEN_OPERATOR && strcmp(token->value, "*") == 0);
+    lexer_advance_cursor(lexer, 1);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_IDENTIFIER) {
+        ast_error(token, "Expected identifier after pointer dereference, got %s\n", token->value);
+    }
+    Node* pointer_deref = create_node(NODE_POINTER_DEREF, token->value);
+
+    lexer_advance_cursor(lexer, 1);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
+        ast_error(token, "Dereferencing a pointer without assignind something to it is not allowed\n");
+    } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+        lexer_advance_cursor(lexer, 1);
+        Node* expression = ast_parse_expression(lexer);
+        node_add_child(pointer_deref, expression);
+    } else {
+        ast_error(token, "Expected semicolon or assignment operator after pointer dereference, got %s\n", token->value);
+        exit(1);
+    }
+    return pointer_deref;
 }
 
 const char* unary_precedence[] = {

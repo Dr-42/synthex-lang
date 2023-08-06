@@ -72,6 +72,8 @@ char* node_type_to_string(NodeType type) {
             return "NODE_ARRAY_DECLARATION";
         case NODE_POINTER_DECLARATION:
             return "NODE_POINTER_DECLARATION";
+        case NODE_POINTER_DEREF:
+            return "NODE_POINTER_DEREF";
         case NODE_FUNCTION_DECLARATION:
             return "NODE_FUNCTION_DECLARATION";
         case NODE_FUNCTION_ARGUMENT:
