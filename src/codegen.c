@@ -410,24 +410,25 @@ void visit_node_pointer_deref(Node* node, Lexer* lexer, LLVMModuleRef module, LL
     LLVMValueRef pointer = NULL;
     size_t idx = 0;
     bool found = false;
-    for (size_t i = 0; i < current_scope_pointer_count; i++) {
-        if (strcmp(pointer_name, current_scope_pointer_names[i]) == 0) {
-            pointer = current_scope_pointers[i];
+
+    // Check if the pointer is one of the function arguments
+    uint32_t arg_count = LLVMCountParams(current_function);
+    for (size_t i = 0; i < arg_count; i++) {
+        LLVMValueRef arg = LLVMGetParam(current_function, i);
+        const char* arg_name = LLVMGetValueName(arg);
+        if (strcmp(pointer_name, arg_name) == 0) {
+            pointer = arg;
             found = true;
-            idx = i;
             break;
         }
     }
 
-    // Check if the pointer is one of the function arguments
-    uint32_t arg_count = LLVMCountParams(current_function);
     if (!found) {
-        for (size_t i = 0; i < arg_count; i++) {
-            LLVMValueRef arg = LLVMGetParam(current_function, i);
-            const char* arg_name = LLVMGetValueName(arg);
-            if (strcmp(pointer_name, arg_name) == 0) {
-                pointer = arg;
+        for (size_t i = 0; i < current_scope_pointer_count; i++) {
+            if (strcmp(pointer_name, current_scope_pointer_names[i]) == 0) {
+                pointer = current_scope_pointers[i];
                 found = true;
+                idx = i;
                 break;
             }
         }
