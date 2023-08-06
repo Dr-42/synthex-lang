@@ -28,12 +28,12 @@ fnc main() : i32 {
     print("Enter number of rows: ");
     rows : i32 = get_num();
 
-    arr : [i32; 50];
-    arr_n : [i32; 50];
+    arr : [i32; 51];
+    arr_n : [i32; 51];
 
     // Zero out the arrays
     ctr : i32 = 0;
-    while (ctr < 50){
+    while (ctr < 51){
         arr[ctr] = 0;
         arr_n[ctr] = 0;
         ctr = ctr + 1;
@@ -46,7 +46,7 @@ fnc main() : i32 {
     while (idx < rows) {
         sc : i32 = 1;
         // Calculate the next row
-        while (sc < 49){
+        while (sc < 50){
             if (arr[sc - 1] == 1 && arr[sc] == 1 && arr[sc + 1] == 1) {
                 arr_n[sc] = 0;
             } elif (arr[sc - 1] == 1 && arr[sc] == 1 && arr[sc + 1] == 0){
