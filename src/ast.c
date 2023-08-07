@@ -182,6 +182,9 @@ Node* ast_parse_statement(Lexer* lexer) {
     } else if (token->type == TOKEN_COMMENT) {
         statement = create_node(NODE_COMMENT, token->value);
         lexer_advance_cursor(lexer, 1);
+    } else if (token->type == TOKEN_DOC_COMMENT) {
+        statement = create_node(NODE_DOC_COMMENT, token->value);
+        lexer_advance_cursor(lexer, 1);
     } else if (token->type == TOKEN_OPERATOR) {
         if (strcmp(token->value, "*") == 0) {
             statement = ast_parse_pointer_deref(lexer);

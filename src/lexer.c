@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define array_length(array) (sizeof(array) / sizeof(array[0]))
+
 Token tokens[1000];
 static uint32_t token_count = 0;
 
@@ -100,11 +102,11 @@ const char *comments[] = {
     "///",
 };
 
-const size_t KEYWORD_COUNT = (sizeof(keywords) / sizeof(keywords[0]));
-const size_t TYPE_COUNT = (sizeof(types) / sizeof(types[0]));
-const size_t OPERATOR_COUNT = (sizeof(operators) / sizeof(operators[0]));
-const size_t PUNCTUATION_COUNT = (sizeof(punctuation) / sizeof(punctuation[0]));
-const size_t COMMENT_COUNT = (sizeof(comments) / sizeof(comments[0]));
+const size_t KEYWORD_COUNT = array_length(keywords);
+const size_t TYPE_COUNT = array_length(types);
+const size_t OPERATOR_COUNT = array_length(operators);
+const size_t PUNCTUATION_COUNT = array_length(punctuation);
+const size_t COMMENT_COUNT = array_length(comments);
 
 Lexer *lexer_create(char *filename) {
     Lexer *lexer = calloc(1, sizeof(Lexer));
@@ -202,6 +204,8 @@ char *token_type_to_string(TokenType type) {
             return "TOKEN_OPERATOR";
         case TOKEN_COMMENT:
             return "TOKEN_COMMENT";
+        case TOKEN_DOC_COMMENT:
+            return "TOKEN_DOC_COMMENT";
         case TOKEN_TYPEANNOTATION:
             return "TOKEN_TYPEANNOTATION";
         default:
@@ -285,9 +289,17 @@ Token *lexer_next_token(Lexer *lexer) {
             }
         }
 
-        // Match comments (simplified: only single-line comments are considered)
+        if (c == '/' && lexer->contents[lexer->index + 1] == '/' && lexer->contents[lexer->index + 2] == '/') {
+            size_t start = lexer->index + 3;
+            while (lexer->contents[lexer->index] != '\n') {
+                lexer->index++;
+                lexer->column++;
+            }
+            return lexer_create_token(lexer, TOKEN_DOC_COMMENT, start, lexer->index);
+        }
+
         if (c == '/' && lexer->contents[lexer->index + 1] == '/') {
-            size_t start = lexer->index;
+            size_t start = lexer->index + 2;
             while (lexer->contents[lexer->index] != '\n') {
                 lexer->index++;
                 lexer->column++;
@@ -295,16 +307,42 @@ Token *lexer_next_token(Lexer *lexer) {
             return lexer_create_token(lexer, TOKEN_COMMENT, start, lexer->index);
         }
 
-        // Match comments (simplified: only multi-line comments are considered)
         if (c == '/' && lexer->contents[lexer->index + 1] == '*') {
-            size_t start = lexer->index;
+            size_t start = lexer->index + 2;
             while (lexer->contents[lexer->index] != '*' || lexer->contents[lexer->index + 1] != '/') {
                 lexer->index++;
                 lexer->column++;
             }
             lexer->index += 2;
             lexer->column += 2;
-            return lexer_create_token(lexer, TOKEN_COMMENT, start, lexer->index);
+            Token *token = lexer_create_token(lexer, TOKEN_COMMENT, start, lexer->index - 2);
+            // Replace all newlines with spaces
+            for (size_t i = 0; i < strlen(token->value); i++) {
+                if (token->value[i] == '\n') {
+                    token->value[i] = ' ';
+                }
+            }
+            // Replace all tabs with spaces
+            for (size_t i = 0; i < strlen(token->value); i++) {
+                if (token->value[i] == '\t') {
+                    token->value[i] = ' ';
+                }
+            }
+            // Remove all spaces at the beginning of the comment
+            while (token->value[0] == ' ') {
+                token->value++;
+            }
+            // Remove all spaces at the end of the comment
+            while (token->value[strlen(token->value) - 1] == ' ') {
+                token->value[strlen(token->value) - 1] = '\0';
+            }
+            // Remove all more than 1 space in a row
+            for (size_t i = 0; i < strlen(token->value); i++) {
+                while (token->value[i] == ' ' && token->value[i + 1] == ' ') {
+                    memmove(&token->value[i], &token->value[i + 1], strlen(token->value) - i);
+                }
+            }
+            return token;
         }
 
         // Match operators
@@ -325,8 +363,29 @@ Token *lexer_next_token(Lexer *lexer) {
 
 void lexer_lexall(Lexer *lexer, bool print) {
     Token *token = NULL;
+    bool encountered_equal = false;
     while ((token = lexer_next_token(lexer))->type != TOKEN_EOF) {
-        if (print)
+        if (print) {
             lexer_print_token(token);
+        }
+        // Fix ">>" operator
+        if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+            encountered_equal = true;
+        }
+        if (token->type == TOKEN_PUNCTUATION) {
+            if (strcmp(token->value, ";") == 0 || strcmp(token->value, "{") == 0 || strcmp(token->value, "}") == 0) {
+                encountered_equal = false;
+            }
+        }
+        if (!encountered_equal) {
+            if (token->type == TOKEN_OPERATOR && strcmp(token->value, ">>") == 0) {
+                token->type = TOKEN_OPERATOR;
+                token->value = ">";
+                // Add another token ">"
+                Token *token2 = &tokens[token_count++];
+                token2->type = TOKEN_OPERATOR;
+                token2->value = ">";
+            }
+        }
     }
 }

@@ -35,6 +35,7 @@ typedef enum {
     NODE_BRK_STATEMENT,
     NODE_CONT_STATEMENT,
     NODE_COMMENT,
+    NODE_DOC_COMMENT,
 } NodeType;
 
 typedef struct Node Node;

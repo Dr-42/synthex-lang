@@ -122,6 +122,8 @@ char* node_type_to_string(NodeType type) {
             return "NODE_NULL_LITERAL";
         case NODE_COMMENT:
             return "NODE_COMMENT";
+        case NODE_DOC_COMMENT:
+            return "NODE_DOC_COMMENT";
         default:
             return "UNKNOWN";
     }
