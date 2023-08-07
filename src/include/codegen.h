@@ -1,3 +1,4 @@
+#pragma once
 #include <llvm-c/Core.h>
 
 #include "ast.h"
