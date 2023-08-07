@@ -1015,39 +1015,78 @@ void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module,
     }
 
     size_t idx = 0;
+    bool found = false;
+    bool is_pointer = false;
     for (int i = 0; i < current_scope_array_count; i++) {
         if (strcmp(current_scope_array_names[i], array_name) == 0) {
             array = current_scope_arrays[i];
             idx = i;
+            found = true;
             break;
         }
     }
+
+    if (!found) {
+        for (int i = 0; i < current_scope_pointer_count; i++) {
+            if (strcmp(current_scope_pointer_names[i], array_name) == 0) {
+                array = current_scope_pointers[i];
+                idx = i;
+                found = true;
+                is_pointer = true;
+                break;
+            }
+        }
+    }
+
     if (array == NULL) {
         printf("Error: Cannot assign to undeclared array '%s'\n", array_name);
         return;
     }
 
-    size_t num_dimensions = current_scope_array_dims[idx];
-    LLVMTypeRef array_type = current_scope_array_types[idx];
-    LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
+    if (!is_pointer) {
+        size_t num_dimensions = current_scope_array_dims[idx];
+        LLVMTypeRef array_type = current_scope_array_types[idx];
+        LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
 
-    LLVMValueRef zero_index = LLVMConstInt(LLVMInt32Type(), 0, false);
+        LLVMValueRef zero_index = LLVMConstInt(LLVMInt32Type(), 0, false);
 
-    size_t ind = 0;
-    LLVMValueRef indices[2 * num_dimensions];
+        size_t ind = 0;
+        LLVMValueRef indices[2 * num_dimensions];
 
-    for (size_t i = 0; i < iden->num_children; i++) {
-        Node* child = iden->children[i];
-        if (child->type == NODE_EXPRESSION) {
-            indices[2 * ind] = zero_index;
-            indices[2 * ind + 1] = visit_node_expression(child, lexer, module, builder);
-            ind++;
+        for (size_t i = 0; i < iden->num_children; i++) {
+            Node* child = iden->children[i];
+            if (child->type == NODE_EXPRESSION) {
+                indices[2 * ind] = zero_index;
+                indices[2 * ind + 1] = visit_node_expression(child, lexer, module, builder);
+                ind++;
+            }
         }
-    }
 
-    LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
-    LLVMSetIsInBounds(gep, true);
-    LLVMBuildStore(builder, value, gep);
+        LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
+        LLVMSetIsInBounds(gep, true);
+        LLVMBuildStore(builder, value, gep);
+    } else {
+        LLVMTypeRef array_type = current_scope_pointer_types[idx];
+        LLVMTypeRef array_element_type = LLVMGetElementType(array_type);
+
+        size_t num_dimensions = iden->num_children;
+        size_t ind = 0;
+        LLVMValueRef indices[num_dimensions];
+
+        for (size_t i = 0; i < iden->num_children; i++) {
+            Node* child = iden->children[i];
+            if (child->type == NODE_EXPRESSION) {
+                indices[ind] = visit_node_expression(child, lexer, module, builder);
+                printf("Indices[%zu]: %s\n", ind, LLVMPrintValueToString(indices[ind]));
+                ind++;
+            }
+        }
+
+        // Offset the pointer
+        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array, indices, num_dimensions, "geptmp");
+        LLVMSetIsInBounds(gep, true);
+        LLVMBuildStore(builder, value, gep);
+    }
 }
 
 LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
@@ -1056,12 +1095,27 @@ LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef mo
     const char* array_name = NULL;
 
     array_name = node->data;
+    bool found = false;
+    bool is_pointer = false;
     size_t idx = 0;
     for (int i = 0; i < current_scope_array_count; i++) {
         if (strcmp(current_scope_array_names[i], array_name) == 0) {
             array = current_scope_arrays[i];
             idx = i;
+            found = true;
             break;
+        }
+    }
+
+    if (!found) {
+        for (int i = 0; i < current_scope_pointer_count; i++) {
+            if (strcmp(current_scope_pointer_names[i], array_name) == 0) {
+                array = current_scope_pointers[i];
+                idx = i;
+                found = true;
+                is_pointer = true;
+                break;
+            }
         }
     }
 
@@ -1070,28 +1124,51 @@ LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef mo
         return NULL;
     }
 
-    size_t num_dimensions = current_scope_array_dims[idx];
-    LLVMTypeRef array_type = current_scope_array_types[idx];
-    LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
+    if (!is_pointer) {
+        size_t num_dimensions = current_scope_array_dims[idx];
+        LLVMTypeRef array_type = current_scope_array_types[idx];
+        LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
 
-    LLVMValueRef zero_index = LLVMConstInt(LLVMInt32Type(), 0, false);
+        LLVMValueRef zero_index = LLVMConstInt(LLVMInt32Type(), 0, false);
 
-    size_t ind = 0;
-    LLVMValueRef indices[2 * num_dimensions];
+        size_t ind = 0;
+        LLVMValueRef indices[2 * num_dimensions];
 
-    for (size_t i = 0; i < node->num_children; i++) {
-        Node* child = node->children[i];
-        if (child->type == NODE_EXPRESSION) {
-            indices[2 * ind] = zero_index;
-            indices[2 * ind + 1] = visit_node_expression(child, lexer, module, builder);
-            ind++;
+        for (size_t i = 0; i < node->num_children; i++) {
+            Node* child = node->children[i];
+            if (child->type == NODE_EXPRESSION) {
+                indices[2 * ind] = zero_index;
+                indices[2 * ind + 1] = visit_node_expression(child, lexer, module, builder);
+                ind++;
+            }
         }
-    }
 
-    LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
-    LLVMSetIsInBounds(gep, true);
-    value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
-    return value;
+        LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
+        LLVMSetIsInBounds(gep, true);
+        value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
+        return value;
+    } else {
+        LLVMTypeRef array_type = current_scope_pointer_types[idx];
+        LLVMTypeRef array_element_type = LLVMGetElementType(array_type);
+
+        size_t num_dimensions = node->num_children;
+        size_t ind = 0;
+        LLVMValueRef indices[num_dimensions];
+
+        for (size_t i = 0; i < node->num_children; i++) {
+            Node* child = node->children[i];
+            if (child->type == NODE_EXPRESSION) {
+                indices[ind] = visit_node_expression(child, lexer, module, builder);
+                ind++;
+            }
+        }
+
+        // Offset the pointer
+        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array, indices, num_dimensions, "geptmp");
+        LLVMSetIsInBounds(gep, true);
+        value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
+        return value;
+    }
 }
 
 LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
