@@ -231,12 +231,19 @@ Node* ast_parse_function(Lexer* lexer) {
     if (token->type != TOKEN_TYPEANNOTATION) {
         ast_error(token, "Expected type annotation after colon in function declaration, got %s\n", token->value);
     }
-    Node* type = create_node(NODE_TYPE, token->value);
+    Node* type = NULL;
+    if (strcmp(token->value, "ptr") == 0) {
+        lexer_advance_cursor(lexer, 1);
+        type = ast_parse_pointer_type(lexer);
+    } else {
+        type = create_node(NODE_TYPE, token->value);
+        lexer_advance_cursor(lexer, 2);
+    }
     node_add_child(function, type);
 
-    token = lexer_peek_token(lexer, 2);
+    token = lexer_peek_token(lexer, 0);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
-        lexer_advance_cursor(lexer, 3);
+        lexer_advance_cursor(lexer, 1);
         declared_functions[declared_functions_count].name = identifier->data;
         declared_functions[declared_functions_count].return_type = type->data;
         for (size_t i = 0; i < function->num_children; i++) {
@@ -248,11 +255,12 @@ Node* ast_parse_function(Lexer* lexer) {
         declared_functions_count++;
         return function;
     }
+    lexer_advance_cursor(lexer, -1);
 
     if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
         ast_error(token, "Expected opening brace or \";\" after function declaration, got %s\n", token->value);
     }
-    lexer_advance_cursor(lexer, 2);
+    lexer_advance_cursor(lexer, 1);
     Node* block = ast_parse_block(lexer);
     node_add_child(function, block);
 
@@ -542,7 +550,7 @@ Node* ast_parse_assignment(Lexer* lexer) {
     token = lexer_peek_token(lexer, 1);
 
     if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
-        if (declared_variables_count == 0) {
+        if (declared_variables_count == 0 && declared_arrays_count == 0 && declared_pointers_count == 0) {
             ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
         }
 
@@ -630,56 +638,115 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     }
 
     size_t array_idx = 0;
+    bool found_array = false;
     for (size_t i = 0; i < declared_arrays_count; i++) {
         if (strcmp(declared_arrays[i].name, token->value) == 0) {
             array_idx = i;
+            found_array = true;
             break;
-        } else if (i == declared_arrays_count - 1) {
-            ast_error(token, "Cannot assign to undeclared array %s\n", token->value);
         }
     }
 
-    size_t array_dim = declared_array_dims[array_idx];
-
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
-    token = lexer_peek_token(lexer, 1);
-    if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
-        // Assigning the entire array
-        lexer_advance_cursor(lexer, 2);
-        Node* expression = ast_parse_array_expression(lexer, array_dim);
-        Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
-        node_add_child(assignment, identifier);
-        node_add_child(assignment, expression);
-        return assignment;
-    } else if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "[") == 0) {
-        // Assigning to a single element
-        // example syntax: arr[0][3][4] = 1;
-        lexer_advance_cursor(lexer, 1);
-        size_t dim_depth = array_dim;
-        for (size_t i = 0; i < array_dim; i++) {
-            Node* array_index = ast_parse_array_index(lexer);
-            node_add_child(identifier, array_index);
-            dim_depth--;
-            Token* ntok = lexer_peek_token(lexer, 0);
-            if (ntok->type == TOKEN_OPERATOR && strcmp(ntok->value, "=") == 0) {
+    bool is_pointer = false;
+    if (!found_array) {
+        for (size_t i = 0; i < declared_pointers_count; i++) {
+            if (strcmp(declared_pointers[i].name, token->value) == 0) {
+                array_idx = i;
+                found_array = true;
+                is_pointer = true;
                 break;
             }
         }
+    }
 
-        token = lexer_peek_token(lexer, 0);
+    if (!found_array) {
+        ast_error(token, "Cannot assign to undeclared array %s\n", token->value);
+    }
 
-        if (token->type != TOKEN_OPERATOR && strcmp(token->value, "=") != 0) {
-            ast_error(token, "Expected = after array index of array length %d, got %s\n", array_dim, token->value);
+    if (!is_pointer) {
+        size_t array_dim = declared_array_dims[array_idx];
+
+        Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+        token = lexer_peek_token(lexer, 1);
+        if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+            // Assigning the entire array
+            lexer_advance_cursor(lexer, 2);
+            Node* expression = ast_parse_array_expression(lexer, array_dim);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            node_add_child(assignment, identifier);
+            node_add_child(assignment, expression);
+            return assignment;
+        } else if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "[") == 0) {
+            // Assigning to a single element
+            // example syntax: arr[0][3][4] = 1;
+            lexer_advance_cursor(lexer, 1);
+            size_t dim_depth = array_dim;
+            for (size_t i = 0; i < array_dim; i++) {
+                Node* array_index = ast_parse_array_index(lexer);
+                node_add_child(identifier, array_index);
+                dim_depth--;
+                Token* ntok = lexer_peek_token(lexer, 0);
+                if (ntok->type == TOKEN_OPERATOR && strcmp(ntok->value, "=") == 0) {
+                    break;
+                }
+            }
+
+            token = lexer_peek_token(lexer, 0);
+
+            if (token->type != TOKEN_OPERATOR && strcmp(token->value, "=") != 0) {
+                ast_error(token, "Expected = after array index of array length %d, got %s\n", array_dim, token->value);
+            }
+
+            lexer_advance_cursor(lexer, 1);
+            Node* expression = ast_parse_expression(lexer);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            node_add_child(assignment, identifier);
+            node_add_child(assignment, expression);
+            return assignment;
+        } else {
+            ast_error(token, "Expected assignment operator or opening bracket after identifier in array assignment, got %s\n", token->value);
         }
-
-        lexer_advance_cursor(lexer, 1);
-        Node* expression = ast_parse_expression(lexer);
-        Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
-        node_add_child(assignment, identifier);
-        node_add_child(assignment, expression);
-        return assignment;
     } else {
-        ast_error(token, "Expected assignment operator or opening bracket after identifier in array assignment, got %s\n", token->value);
+        Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+        token = lexer_peek_token(lexer, 1);
+        if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
+            // Assigning the entire array
+            lexer_advance_cursor(lexer, 2);
+            Node* expression = ast_parse_expression(lexer);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            node_add_child(assignment, identifier);
+            node_add_child(assignment, expression);
+            return assignment;
+        } else if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "[") == 0) {
+            // Assigning to a single element
+            // example syntax: arr[0][3][4] = 1;
+            lexer_advance_cursor(lexer, 1);
+            size_t dim_depth = 1;
+            while (true) {
+                Node* array_index = ast_parse_array_index(lexer);
+                node_add_child(identifier, array_index);
+                dim_depth++;
+                Token* ntok = lexer_peek_token(lexer, 0);
+                if (ntok->type == TOKEN_OPERATOR && strcmp(ntok->value, "=") == 0) {
+                    break;
+                }
+            }
+
+            token = lexer_peek_token(lexer, 0);
+
+            if (token->type != TOKEN_OPERATOR && strcmp(token->value, "=") != 0) {
+                ast_error(token, "Expected = after array index of array length %d, got %s\n", dim_depth, token->value);
+            }
+
+            lexer_advance_cursor(lexer, 1);
+            Node* expression = ast_parse_expression(lexer);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            node_add_child(assignment, identifier);
+            node_add_child(assignment, expression);
+            return assignment;
+        } else {
+            ast_error(token, "Expected assignment operator or opening bracket after identifier in pointer as array assignment, got %s\n", token->value);
+        }
     }
     return NULL;
 }

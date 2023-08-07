@@ -242,7 +242,38 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
         } else if (child->type == NODE_TYPE) {
             for (size_t j = 0; j < TYPE_COUNT; j++) {
                 if (strcmp(child->data, types[j]) == 0) {
-                    return_type = llvm_types[j];
+                    if (strcmp(child->data, "ptr") == 0) {
+                        size_t pointer_degree = 1;
+                        Node* type_node = child->children[0];
+                        bool is_ptr = false;
+                        while (!is_ptr) {
+                            if (strcmp(type_node->data, "ptr") == 0) {
+                                type_node = type_node->children[0];
+                                pointer_degree++;
+                            } else {
+                                is_ptr = true;
+                            }
+                        }
+
+                        LLVMTypeRef type = NULL;
+                        for (size_t j = 0; j < TYPE_COUNT; j++) {
+                            if (strcmp(type_node->data, types[j]) == 0) {
+                                type = llvm_types[j];
+                                break;
+                            }
+                        }
+                        if (type == NULL) {
+                            fprintf(stderr, "Error: Pointer '%s' could not be declared due to empty base data type\n", func_name);
+                            return;
+                        }
+
+                        for (size_t i = 0; i < pointer_degree; i++) {
+                            type = LLVMPointerType(type, 0);
+                        }
+                        return_type = type;
+                    } else {
+                        return_type = llvm_types[j];
+                    }
                     break;
                 }
             }
@@ -851,6 +882,11 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                     LLVMValueRef operand = visit_node(rhs, lexer, module, builder);
                     // Weird hack to get the type of the operand
                     if (strcmp((char*)child->data, "&") == 0 || strcmp((char*)child->data, "*") == 0) {
+                        if (rhs->type != NODE_IDENTIFIER) {
+                            fprintf(stderr, "Error: Only identifiers can be derefenced. Recieved %s\n", (char*)node->data);
+                            exit(1);
+                            return NULL;
+                        }
                         operand = visit_node_identifier(rhs, lexer, module, builder, false);
                     }
                     lhs = visit_node_unary_operator(child, lexer, module, builder, operand);

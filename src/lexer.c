@@ -131,9 +131,11 @@ Lexer *lexer_create(char *filename) {
 }
 
 void lexer_destroy(Lexer *lexer) {
+    /*
     for (uint32_t i = 0; i < token_count; i++) {
         free(tokens[i].value);
     }
+    */
     free(lexer);
 }
 
