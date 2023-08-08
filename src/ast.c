@@ -8,9 +8,6 @@
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
-extern const char* keywords[];
-extern const size_t KEYWORD_COUNT;
-
 typedef struct Function {
     const char* name;
     const char* return_type;
@@ -932,11 +929,11 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                 node_add_child(expression, create_node(NODE_FLOAT_LITERAL, token->value));
                 break;
             case TOKEN_KEYWORD:
-                if (strcmp(token->value, keywords[KEYWORD_TRUE]) == 0) {
+                if (get_keyword_type(token->value) == KEYWORD_TRUE) {
                     node_add_child(expression, create_node(NODE_TRUE_LITERAL, token->value));
-                } else if (strcmp(token->value, keywords[KEYWORD_FALSE]) == 0) {
+                } else if (get_keyword_type(token->value) == KEYWORD_FALSE) {
                     node_add_child(expression, create_node(NODE_FALSE_LITERAL, token->value));
-                } else if (strcmp(token->value, keywords[KEYWORD_NULL]) == 0) {
+                } else if (get_keyword_type(token->value) == KEYWORD_NULL) {
                     node_add_child(expression, create_node(NODE_NULL_LITERAL, token->value));
                 } else {
                     ast_error(token, "Unexpected keyword in expression: %s\n", token->value);
