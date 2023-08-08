@@ -41,17 +41,17 @@ LLVMBasicBlockRef while_cond_block = NULL;
 
 void convert_all_types(LLVMContextRef ctx) {
     llvm_types = calloc(TYPE_COUNT, sizeof(LLVMTypeRef));
-    llvm_types[0] = LLVMInt8TypeInContext(ctx);
-    llvm_types[1] = LLVMInt16TypeInContext(ctx);
-    llvm_types[2] = LLVMInt32TypeInContext(ctx);
-    llvm_types[3] = LLVMInt64TypeInContext(ctx);
-    llvm_types[4] = LLVMFloatTypeInContext(ctx);
-    llvm_types[5] = LLVMDoubleTypeInContext(ctx);
-    llvm_types[6] = LLVMPointerType(LLVMInt8Type(), 0);
-    llvm_types[7] = LLVMInt8TypeInContext(ctx);
-    llvm_types[8] = LLVMInt1TypeInContext(ctx);
-    llvm_types[9] = LLVMVoidTypeInContext(ctx);
-    llvm_types[10] = NULL;
+    llvm_types[DATA_TYPE_I8] = LLVMInt8TypeInContext(ctx);
+    llvm_types[DATA_TYPE_I16] = LLVMInt16TypeInContext(ctx);
+    llvm_types[DATA_TYPE_I32] = LLVMInt32TypeInContext(ctx);
+    llvm_types[DATA_TYPE_I64] = LLVMInt64TypeInContext(ctx);
+    llvm_types[DATA_TYPE_F32] = LLVMFloatTypeInContext(ctx);
+    llvm_types[DATA_TYPE_F64] = LLVMDoubleTypeInContext(ctx);
+    llvm_types[DATA_TYPE_STR] = LLVMPointerType(LLVMInt8Type(), 0);
+    llvm_types[DATA_TYPE_CHR] = LLVMInt8TypeInContext(ctx);
+    llvm_types[DATA_TYPE_BLN] = LLVMInt1TypeInContext(ctx);
+    llvm_types[DATA_TYPE_VOID] = LLVMVoidTypeInContext(ctx);
+    llvm_types[DATA_TYPE_PTR] = NULL;
 }
 
 void ast_to_llvm(AST* ast, Lexer* lexer) {
