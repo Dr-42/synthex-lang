@@ -12,6 +12,8 @@ typedef struct {
     size_t line;
     size_t column;
     size_t index;
+    Token *tokens;
+    size_t token_count;
 } Lexer;
 
 typedef enum {

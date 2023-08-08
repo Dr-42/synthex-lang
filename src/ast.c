@@ -11,8 +11,6 @@
 extern const char* keywords[];
 extern const size_t KEYWORD_COUNT;
 
-extern Token tokens[];
-
 typedef struct Function {
     const char* name;
     const char* return_type;
@@ -468,8 +466,8 @@ Node* ast_parse_variable_declaration(Lexer* lexer) {
             return identifier;
         } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
             lexer_advance_cursor(lexer, 2);
-            tokens[lexer->index].type = TOKEN_IDENTIFIER;
-            tokens[lexer->index].value = identifier->data;
+            lexer->tokens[lexer->index].type = TOKEN_IDENTIFIER;
+            lexer->tokens[lexer->index].value = identifier->data;
             return identifier;
         } else {
             ast_error(token, "Expected semicolon or assignment operator after type annotation in variable declaration, got %s\n", token->value);
@@ -537,8 +535,8 @@ Node* ast_parse_array_declaration(Lexer* lexer) {
         return array_declaration;
     } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
         lexer_advance_cursor(lexer, idx - 1);
-        tokens[lexer->index].type = TOKEN_IDENTIFIER;
-        tokens[lexer->index].value = identifier->data;
+        lexer->tokens[lexer->index].type = TOKEN_IDENTIFIER;
+        lexer->tokens[lexer->index].value = identifier->data;
         return array_declaration;
     } else {
         ast_error(token, "Expected semicolon or assignment operator after array declaration, got %s\n", token->value);
@@ -811,8 +809,8 @@ Node* ast_parse_pointer_declaration(Lexer* lexer) {
         return pointer_declaration;
     } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
         lexer_advance_cursor(lexer, -1);
-        tokens[lexer->index].type = TOKEN_IDENTIFIER;
-        tokens[lexer->index].value = identifier->data;
+        lexer->tokens[lexer->index].type = TOKEN_IDENTIFIER;
+        lexer->tokens[lexer->index].value = identifier->data;
         return pointer_declaration;
     } else {
         ast_error(token, "Expected semicolon or assignment operator after pointer declaration, got %s\n", token->value);

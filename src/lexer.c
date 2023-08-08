@@ -7,9 +7,6 @@
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
-Token tokens[1000];
-static uint32_t token_count = 0;
-
 const char *keywords[] = {
     "fnc",
     "inc",
@@ -129,26 +126,19 @@ Lexer *lexer_create(char *filename) {
     fread(lexer->contents, sizeof(char), size, file);
     fclose(file);
 
+    lexer->tokens = NULL;
+    lexer->token_count = 0;
+
     return lexer;
 }
 
 void lexer_destroy(Lexer *lexer) {
-    /*
-    for (uint32_t i = 0; i < token_count; i++) {
-        free(tokens[i].value);
-    }
-    */
+    free(lexer->tokens);
     free(lexer);
 }
 
 Token *lexer_peek_token(Lexer *lexer, size_t offset) {
-    uint32_t index = lexer->index;
-    uint32_t line = lexer->line;
-    uint32_t column = lexer->column;
-    Token *token = &tokens[lexer->index + offset];
-    lexer->index = index;
-    lexer->line = line;
-    lexer->column = column;
+    Token *token = &(lexer->tokens[lexer->index + offset]);
     return token;
 }
 
@@ -161,7 +151,12 @@ void lexer_advance_cursor(Lexer *lexer, int32_t offset) {
 }
 
 Token *lexer_create_token(Lexer *lexer, TokenType type, size_t start, size_t end) {
-    Token *token = &tokens[token_count++];
+    if (lexer->token_count == 0) {
+        lexer->tokens = calloc(1, sizeof(Token));
+    } else {
+        lexer->tokens = realloc(lexer->tokens, (lexer->token_count + 1) * sizeof(Token));
+    }
+    Token *token = &lexer->tokens[lexer->token_count++];
     token->type = type;
     token->value = calloc(end - start + 1, sizeof(char));
     memcpy(token->value, lexer->contents + start, end - start);
@@ -382,7 +377,7 @@ void lexer_lexall(Lexer *lexer, bool print) {
                 token->type = TOKEN_OPERATOR;
                 token->value = ">";
                 // Add another token ">"
-                Token *token2 = &tokens[token_count++];
+                Token *token2 = lexer_create_token(lexer, TOKEN_OPERATOR, lexer->index, lexer->index);
                 token2->type = TOKEN_OPERATOR;
                 token2->value = ">";
             }
