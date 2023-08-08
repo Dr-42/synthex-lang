@@ -6,9 +6,11 @@
 #include "lexer.h"
 #include "node.h"
 #include "token.h"
+#include "utils/ast_data.h"
 
 typedef struct {
     Node* root;
+    ASTData* data;
 } AST;
 
 AST* ast_create();
@@ -32,7 +34,7 @@ Node* ast_parse_array_declaration(Lexer* lexer);
 Node* ast_parse_assignment(Lexer* lexer);
 Node* ast_parse_array_assignment(Lexer* lexer);
 Node* ast_parse_array_expression(Lexer* lexer, size_t array_dim);
-Node* ast_parse_pointer_type(Lexer* lexer);
+Node* ast_parse_pointer_type(Lexer* lexer, size_t* ptr_depth);
 Node* ast_parse_pointer_declaration(Lexer* lexer);
 Node* ast_parse_pointer_deref(Lexer* lexer);
 Node* ast_parse_expression(Lexer* lexer);

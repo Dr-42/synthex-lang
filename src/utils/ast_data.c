@@ -1,5 +1,7 @@
 #include "utils/ast_data.h"
 
+#include <stdlib.h>
+
 ASTData* ast_data_create() {
     ASTData* ast_data = malloc(sizeof(ASTData));
     ast_data->functions = NULL;
@@ -15,16 +17,16 @@ ASTData* ast_data_create() {
 
 void ast_data_destroy(ASTData* ast_data) {
     for (size_t i = 0; i < ast_data->function_count; i++) {
-        function_destroy(&ast_data->functions[i]);
+        ast_data_function_destroy(&ast_data->functions[i]);
     }
     for (size_t i = 0; i < ast_data->variable_count; i++) {
-        variable_destroy(&ast_data->variables[i]);
+        ast_data_variable_destroy(&ast_data->variables[i]);
     }
     for (size_t i = 0; i < ast_data->pointer_count; i++) {
-        pointer_destroy(&ast_data->pointers[i]);
+        ast_data_pointer_destroy(&ast_data->pointers[i]);
     }
     for (size_t i = 0; i < ast_data->array_count; i++) {
-        array_destroy(&ast_data->arrays[i]);
+        ast_data_array_destroy(&ast_data->arrays[i]);
     }
     free(ast_data->functions);
     free(ast_data->variables);
@@ -86,7 +88,7 @@ void ast_data_print(ASTData* ast_data) {
     }
 }
 
-Function* function_create(const char* name, DataType return_type, const char** arguments, DataType* argument_types, size_t argument_count) {
+Function* ast_data_function_create(const char* name, DataType return_type, const char** arguments, DataType* argument_types, size_t argument_count) {
     Function* function = malloc(sizeof(Function));
     function->name = name;
     function->return_type = return_type;
@@ -95,38 +97,38 @@ Function* function_create(const char* name, DataType return_type, const char** a
     function->argument_count = argument_count;
     return function;
 }
-void function_destroy(Function* function) {
+void ast_data_function_destroy(Function* function) {
     free(function);
 }
 
-Variable* variable_create(const char* name, DataType type) {
+Variable* ast_data_variable_create(const char* name, DataType type) {
     Variable* variable = malloc(sizeof(Variable));
     variable->name = name;
     variable->type = type;
     return variable;
 }
-void variable_destroy(Variable* variable) {
+void ast_data_variable_destroy(Variable* variable) {
     free(variable);
 }
 
-Pointer* pointer_create(const char* name, DataType base_type, size_t degree) {
+Pointer* ast_data_pointer_create(const char* name, DataType base_type, size_t degree) {
     Pointer* pointer = malloc(sizeof(Pointer));
     pointer->name = name;
     pointer->base_type = base_type;
     pointer->degree = degree;
     return pointer;
 }
-void pointer_destroy(Pointer* pointer) {
+void ast_data_pointer_destroy(Pointer* pointer) {
     free(pointer);
 }
 
-Array* array_create(const char* name, DataType base_type, size_t dimension) {
+Array* ast_data_array_create(const char* name, DataType base_type, size_t dimension) {
     Array* array = malloc(sizeof(Array));
     array->name = name;
     array->base_type = base_type;
     array->dimension = dimension;
     return array;
 }
-void array_destroy(Array* array) {
+void ast_data_array_destroy(Array* array) {
     free(array);
 }

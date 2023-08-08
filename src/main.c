@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "codegen.h"
 #include "lexer.h"
+#include "utils/ast_data.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -21,6 +22,7 @@ int main(int argc, char *argv[]) {
     AST *ast = ast_create();
     ast_build(ast, lexer);
     ast_print(ast);
+    ast_data_print(ast->data);
     // ast_print_declarations();
 
     ast_to_llvm(ast, lexer);

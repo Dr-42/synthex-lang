@@ -8,28 +8,7 @@
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
-typedef struct Function {
-    const char* name;
-    const char* return_type;
-    const char* arguments[100];
-    size_t argument_count;
-} Function;
-
-typedef struct Variable {
-    const char* name;
-    const char* type;
-} Variable;
-
-Variable declared_variables[100];
-size_t declared_variables_count = 0;
-Variable declared_pointers[100];
-size_t declared_pointers_count = 0;
-
-Variable declared_arrays[100];
-size_t declared_arrays_count = 0;
-size_t declared_array_dims[100];
-Function declared_functions[100];
-size_t declared_functions_count = 0;
+ASTData* ast_data = NULL;
 
 void node_error(Node* node, const char* fmt, ...) {
     va_list args;
@@ -46,6 +25,8 @@ void node_error(Node* node, const char* fmt, ...) {
 AST* ast_create() {
     AST* ast = calloc(1, sizeof(AST));
     ast->root = NULL;
+    ast_data = ast_data_create();
+    ast->data = ast_data;
     return ast;
 }
 
@@ -58,24 +39,6 @@ void ast_print(AST* ast) {
     bool* indents = malloc(100 * sizeof(bool));  // Assume max depth of 100
     print_node(ast->root, indents, 0);
     free(indents);
-}
-
-void ast_print_declarations() {
-    printf("Variables:\n");
-    for (size_t i = 0; i < declared_variables_count; i++) {
-        printf("\t%s: %s\n", declared_variables[i].name, declared_variables[i].type);
-    }
-    printf("Functions:\n");
-    for (size_t i = 0; i < declared_functions_count; i++) {
-        printf("\t%s: %s(", declared_functions[i].name, declared_functions[i].return_type);
-        for (size_t j = 0; j < declared_functions[i].argument_count; j++) {
-            printf("%s : %s", declared_functions[i].arguments[j], declared_variables[j].type);
-            if (j != declared_functions[i].argument_count - 1) {
-                printf(", ");
-            }
-        }
-        printf(")\n");
-    }
 }
 
 void _ast_error(int src_line, char* file, Token* token, char* message, ...) {
@@ -154,18 +117,18 @@ Node* ast_parse_statement(Lexer* lexer) {
         } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, "[") == 0) {
             statement = ast_parse_array_assignment(lexer);
         } else if (next_token->type == TOKEN_OPERATOR && strcmp(next_token->value, "=") == 0) {
-            for (size_t i = 0; i < declared_variables_count; i++) {
-                if (strcmp(declared_variables[i].name, token->value) == 0) {
+            for (size_t i = 0; i < ast_data->variable_count; i++) {
+                if (strcmp(ast_data->variables[i].name, token->value) == 0) {
                     return ast_parse_assignment(lexer);
                 }
             }
-            for (size_t i = 0; i < declared_arrays_count; i++) {
-                if (strcmp(declared_arrays[i].name, token->value) == 0) {
+            for (size_t i = 0; i < ast_data->array_count; i++) {
+                if (strcmp(ast_data->arrays[i].name, token->value) == 0) {
                     return ast_parse_array_assignment(lexer);
                 }
             }
-            for (size_t i = 0; i < declared_pointers_count; i++) {
-                if (strcmp(declared_pointers[i].name, token->value) == 0) {
+            for (size_t i = 0; i < ast_data->pointer_count; i++) {
+                if (strcmp(ast_data->pointers[i].name, token->value) == 0) {
                     return ast_parse_assignment(lexer);
                 }
             }
@@ -234,7 +197,7 @@ Node* ast_parse_function(Lexer* lexer) {
     Node* type = NULL;
     if (get_data_type(token->value) == DATA_TYPE_PTR) {
         lexer_advance_cursor(lexer, 1);
-        type = ast_parse_pointer_type(lexer);
+        type = ast_parse_pointer_type(lexer, NULL);
     } else {
         type = create_node(NODE_TYPE, token->value);
         lexer_advance_cursor(lexer, 2);
@@ -244,38 +207,38 @@ Node* ast_parse_function(Lexer* lexer) {
     token = lexer_peek_token(lexer, 0);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
         lexer_advance_cursor(lexer, 1);
-        declared_functions[declared_functions_count].name = identifier->data;
-        declared_functions[declared_functions_count].return_type = type->data;
-        for (size_t i = 0; i < function->num_children; i++) {
-            if (function->children[i]->type == NODE_FUNCTION_ARGUMENT) {
-                declared_functions[declared_functions_count].arguments[declared_functions[declared_functions_count].argument_count] = function->children[i]->data;
-                declared_functions[declared_functions_count].argument_count++;
-            }
+    } else {
+        lexer_advance_cursor(lexer, -1);
+
+        if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
+            ast_error(token, "Expected opening brace or \";\" after function declaration, got %s\n", token->value);
         }
-        declared_functions_count++;
-        return function;
+        lexer_advance_cursor(lexer, 1);
+        Node* block = ast_parse_block(lexer);
+        node_add_child(function, block);
+        lexer_advance_cursor(lexer, 1);
     }
-    lexer_advance_cursor(lexer, -1);
-
-    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
-        ast_error(token, "Expected opening brace or \";\" after function declaration, got %s\n", token->value);
-    }
-    lexer_advance_cursor(lexer, 1);
-    Node* block = ast_parse_block(lexer);
-    node_add_child(function, block);
-
-    declared_functions[declared_functions_count].name = identifier->data;
-    declared_functions[declared_functions_count].return_type = type->data;
+    const char* arguments[100] = {0};
+    DataType argument_types[100] = {0};
+    size_t argument_count = 0;
     for (size_t i = 0; i < function->num_children; i++) {
         if (function->children[i]->type == NODE_FUNCTION_ARGUMENT) {
-            declared_functions[declared_functions_count].arguments[declared_functions[declared_functions_count].argument_count] = function->children[i]->data;
-            declared_functions[declared_functions_count].argument_count++;
+            arguments[argument_count] = function->children[i]->data;
+            for (size_t j = 0; j < function->children[i]->num_children; j++) {
+                if (function->children[i]->children[j]->type == NODE_TYPE) {
+                    argument_types[argument_count] = get_data_type(function->children[i]->children[j]->data);
+                }
+            }
+            argument_count++;
         }
     }
-
-    declared_functions_count++;
-
-    lexer_advance_cursor(lexer, 1);
+    const char** args = calloc(argument_count, sizeof(char*));
+    DataType* arg_types = calloc(argument_count, sizeof(DataType));
+    for (size_t i = 0; i < argument_count; i++) {
+        args[i] = arguments[i];
+    }
+    Function* function_data = ast_data_function_create(identifier->data, get_data_type(type->data), args, arg_types, argument_count);
+    ast_data_add_function(ast_data, function_data);
     return function;
 }
 
@@ -313,7 +276,7 @@ Node* ast_parse_function_argument(Lexer* lexer) {
     Node* type = NULL;
     if (get_data_type(token->value) == DATA_TYPE_PTR) {
         token = lexer_peek_token(lexer, 0);
-        type = ast_parse_pointer_type(lexer);
+        type = ast_parse_pointer_type(lexer, NULL);
     } else {
         type = create_node(NODE_TYPE, token->value);
         lexer_advance_cursor(lexer, 1);
@@ -452,9 +415,8 @@ Node* ast_parse_variable_declaration(Lexer* lexer) {
         Node* type = create_node(NODE_TYPE, token->value);
         token = lexer_peek_token(lexer, 3);
 
-        declared_variables[declared_variables_count].name = identifier->data;
-        declared_variables[declared_variables_count].type = type->data;
-        declared_variables_count++;
+        Variable* variable = ast_data_variable_create(identifier->data, get_data_type(type->data));
+        ast_data_add_variable(ast_data, variable);
         identifier->type = NODE_VARIABLE_DECLARATION;
         node_add_child(identifier, type);
 
@@ -520,10 +482,8 @@ Node* ast_parse_array_declaration(Lexer* lexer) {
 
     free(array_dims);
 
-    declared_arrays[declared_arrays_count].name = identifier->data;
-    declared_arrays[declared_arrays_count].type = type->data;
-    declared_array_dims[declared_arrays_count] = array_dims_count;
-    declared_arrays_count++;
+    Array* array = ast_data_array_create(identifier->data, get_data_type(type->data), array_dims_count);
+    ast_data_add_array(ast_data, array);
 
     token = lexer_peek_token(lexer, idx);
 
@@ -550,22 +510,22 @@ Node* ast_parse_assignment(Lexer* lexer) {
     token = lexer_peek_token(lexer, 1);
 
     if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
-        if (declared_variables_count == 0 && declared_arrays_count == 0 && declared_pointers_count == 0) {
+        if (ast_data->variable_count == 0 && ast_data->array_count == 0 && ast_data->pointer_count == 0) {
             ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
         }
 
         bool is_pointer = false;
-        for (size_t i = 0; i < declared_pointers_count; i++) {
-            if (strcmp(declared_pointers[i].name, identifier->data) == 0) {
+        for (size_t i = 0; i < ast_data->pointer_count; i++) {
+            if (strcmp(ast_data->pointers[i].name, identifier->data) == 0) {
                 is_pointer = true;
                 break;
             }
         }
         if (!is_pointer) {
-            for (size_t i = 0; i < declared_variables_count; i++) {
-                if (strcmp(declared_variables[i].name, identifier->data) == 0) {
+            for (size_t i = 0; i < ast_data->variable_count; i++) {
+                if (strcmp(ast_data->variables[i].name, identifier->data) == 0) {
                     break;
-                } else if (i == declared_variables_count - 1) {
+                } else if (i == ast_data->variable_count - 1) {
                     ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
                 }
             }
@@ -639,8 +599,8 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 
     size_t array_idx = 0;
     bool found_array = false;
-    for (size_t i = 0; i < declared_arrays_count; i++) {
-        if (strcmp(declared_arrays[i].name, token->value) == 0) {
+    for (size_t i = 0; i < ast_data->array_count; i++) {
+        if (strcmp(ast_data->arrays[i].name, token->value) == 0) {
             array_idx = i;
             found_array = true;
             break;
@@ -649,8 +609,8 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 
     bool is_pointer = false;
     if (!found_array) {
-        for (size_t i = 0; i < declared_pointers_count; i++) {
-            if (strcmp(declared_pointers[i].name, token->value) == 0) {
+        for (size_t i = 0; i < ast_data->pointer_count; i++) {
+            if (strcmp(ast_data->pointers[i].name, token->value) == 0) {
                 array_idx = i;
                 found_array = true;
                 is_pointer = true;
@@ -664,7 +624,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     }
 
     if (!is_pointer) {
-        size_t array_dim = declared_array_dims[array_idx];
+        size_t array_dim = ast_data->arrays[array_idx].dimension;
 
         Node* identifier = create_node(NODE_IDENTIFIER, token->value);
         token = lexer_peek_token(lexer, 1);
@@ -751,7 +711,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     return NULL;
 }
 
-Node* ast_parse_pointer_type(Lexer* lexer) {
+Node* ast_parse_pointer_type(Lexer* lexer, size_t* ptr_depth) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_TYPEANNOTATION && get_data_type(token->value) == DATA_TYPE_PTR);
     Node* pointer_type = create_node(NODE_TYPE, token->value);
@@ -766,8 +726,11 @@ Node* ast_parse_pointer_type(Lexer* lexer) {
         ast_error(token, "Expected type annotation after opening angle bracket in pointer type, got %s\n", token->value);
     }
     if (get_data_type(token->value) == DATA_TYPE_PTR) {
-        Node* nested_pointer_type = ast_parse_pointer_type(lexer);
+        Node* nested_pointer_type = ast_parse_pointer_type(lexer, ptr_depth);
         node_add_child(pointer_type, nested_pointer_type);
+        if (ptr_depth != NULL) {
+            *ptr_depth += 1;
+        }
     } else {
         Node* type = create_node(NODE_TYPE, token->value);
         node_add_child(pointer_type, type);
@@ -791,14 +754,27 @@ Node* ast_parse_pointer_declaration(Lexer* lexer) {
     lexer_advance_cursor(lexer, 2);
     token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_TYPEANNOTATION && get_data_type(token->value) == DATA_TYPE_PTR);
-    Node* type = ast_parse_pointer_type(lexer);
+    size_t ptr_depth = 0;
+    Node* type = ast_parse_pointer_type(lexer, &ptr_depth);
     Node* pointer_declaration = create_node(NODE_POINTER_DECLARATION, NULL);
     node_add_child(pointer_declaration, identifier);
     node_add_child(pointer_declaration, type);
 
-    declared_pointers[declared_pointers_count].name = identifier->data;
-    declared_pointers[declared_pointers_count].type = type->data;
-    declared_pointers_count++;
+    bool done = false;
+    DataType base_type = DATA_TYPE_TOTAL;
+    Node* base_type_node = type;
+    while (!done) {
+        if (get_data_type(base_type_node->data) == DATA_TYPE_PTR) {
+            base_type_node = base_type_node->children[0];
+            ptr_depth++;
+        } else {
+            base_type = get_data_type(base_type_node->data);
+            done = true;
+        }
+    }
+
+    Pointer* pointer = ast_data_pointer_create(identifier->data, base_type, ptr_depth);
+    ast_data_add_pointer(ast_data, pointer);
 
     token = lexer_peek_token(lexer, 0);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
@@ -891,9 +867,9 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                 Token* next_tok = lexer_peek_token(lexer, 1);
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
                     // Check if the function call returns void
-                    for (size_t i = 0; i < declared_functions_count; i++) {
-                        if (strcmp(declared_functions[i].name, token->value) == 0) {
-                            if (get_data_type(declared_functions[i].return_type) == DATA_TYPE_VOID) {
+                    for (size_t i = 0; i < ast_data->function_count; i++) {
+                        if (strcmp(ast_data->functions[i].name, token->value) == 0) {
+                            if (ast_data->functions[i].return_type == DATA_TYPE_VOID) {
                                 ast_error(token, "Cannot use void function \"%s\" in expression\n", token->value);
                             }
                         }
@@ -1165,10 +1141,10 @@ Node* ast_parse_call_expression(Lexer* lexer) {
         ast_error(token, "Expected identifier as left-hand side of call expression, got %s\n", token->value);
     }
 
-    for (size_t i = 0; i < declared_functions_count; i++) {
-        if (strcmp(declared_functions[i].name, token->value) == 0) {
+    for (size_t i = 0; i < ast_data->function_count; i++) {
+        if (strcmp(ast_data->functions[i].name, token->value) == 0) {
             break;
-        } else if (i == declared_functions_count - 1) {
+        } else if (i == ast_data->function_count - 1) {
             ast_error(token, "Cannot call undeclared function %s\n", token->value);
         }
     }

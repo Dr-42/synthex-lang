@@ -47,14 +47,14 @@ void ast_data_add_array(ASTData* ast_data, Array* array);
 
 void ast_data_print(ASTData* ast_data);
 
-Function* function_create(const char* name, DataType return_type, const char** arguments, DataType* argument_types, size_t argument_count);
-void function_destroy(Function* function);
+Function* ast_data_function_create(const char* name, DataType return_type, const char** arguments, DataType* argument_types, size_t argument_count);
+void ast_data_function_destroy(Function* function);
 
-Variable* variable_create(const char* name, DataType type);
-void variable_destroy(Variable* variable);
+Variable* ast_data_variable_create(const char* name, DataType type);
+void ast_data_variable_destroy(Variable* variable);
 
-Pointer* pointer_create(const char* name, DataType base_type, size_t degree);
-void pointer_destroy(Pointer* pointer);
+Pointer* ast_data_pointer_create(const char* name, DataType base_type, size_t degree);
+void ast_data_pointer_destroy(Pointer* pointer);
 
-Array* array_create(const char* name, DataType base_type, size_t dimension);
-void array_destroy(Array* array);
+Array* ast_data_array_create(const char* name, DataType base_type, size_t dimension);
+void ast_data_array_destroy(Array* array);
