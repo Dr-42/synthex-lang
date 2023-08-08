@@ -389,3 +389,23 @@ void lexer_lexall(Lexer *lexer, bool print) {
         }
     }
 }
+
+DataType get_data_type(const char *type_str) {
+    for (int i = 0; i < DATA_TYPE_TOTAL; i++) {
+        if (strcmp(type_str, types[i]) == 0) {
+            return i;
+        }
+    }
+
+    return DATA_TYPE_TOTAL;
+}
+
+KeywordType get_keyword_type(const char *keyword_str) {
+    for (int i = 0; i < KEYWORD_TOTAL; i++) {
+        if (strcmp(keyword_str, keywords[i]) == 0) {
+            return i;
+        }
+    }
+
+    return KEYWORD_TOTAL;
+}

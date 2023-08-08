@@ -116,21 +116,22 @@ Node* ast_parse_statement(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     Node* statement = NULL;
     if (token->type == TOKEN_KEYWORD) {
-        if (strcmp(token->value, keywords[KEYWORD_FNC]) == 0) {
+        KeywordType keyword_type = get_keyword_type(token->value);
+        if (keyword_type == KEYWORD_FNC) {
             statement = ast_parse_function(lexer);
-        } else if (strcmp(token->value, keywords[KEYWORD_IF]) == 0) {
+        } else if (keyword_type == KEYWORD_IF) {
             statement = ast_parse_if_statement(lexer, false);
-        } else if (strcmp(token->value, keywords[KEYWORD_WHILE]) == 0) {
+        } else if (keyword_type == KEYWORD_WHILE) {
             statement = ast_parse_while_statement(lexer);
-        } else if (strcmp(token->value, keywords[KEYWORD_RET]) == 0) {
+        } else if (keyword_type == KEYWORD_RET) {
             statement = create_node(NODE_RETURN_STATEMENT, NULL);
             lexer_advance_cursor(lexer, 1);
             Node* expression = ast_parse_expression(lexer);
             node_add_child(statement, expression);
-        } else if (strcmp(token->value, keywords[KEYWORD_BRK]) == 0) {
+        } else if (keyword_type == KEYWORD_BRK) {
             statement = create_node(NODE_BRK_STATEMENT, NULL);
             lexer_advance_cursor(lexer, 1);
-        } else if (strcmp(token->value, keywords[KEYWORD_CONT]) == 0) {
+        } else if (keyword_type == KEYWORD_CONT) {
             statement = create_node(NODE_CONT_STATEMENT, NULL);
             lexer_advance_cursor(lexer, 1);
         } else {
@@ -144,7 +145,8 @@ Node* ast_parse_statement(Lexer* lexer) {
         } else if (next_token->type == TOKEN_PUNCTUATION && strcmp(next_token->value, ":") == 0) {
             next_token = lexer_peek_token(lexer, 2);
             if (next_token->type == TOKEN_TYPEANNOTATION) {
-                if (strcmp(next_token->value, "ptr") == 0) {
+                DataType data_type = get_data_type(next_token->value);
+                if (data_type == DATA_TYPE_PTR) {
                     statement = ast_parse_pointer_declaration(lexer);
                 } else {
                     statement = ast_parse_variable_declaration(lexer);
@@ -205,7 +207,7 @@ Node* ast_parse_statement(Lexer* lexer) {
 Node* ast_parse_function(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_KEYWORD);
-    assert(strcmp(token->value, keywords[KEYWORD_FNC]) == 0);
+    assert(get_keyword_type(token->value) == KEYWORD_FNC);
     Node* function = create_node(NODE_FUNCTION_DECLARATION, NULL);
     token = lexer_peek_token(lexer, 1);
     if (token->type != TOKEN_IDENTIFIER) {
@@ -235,7 +237,7 @@ Node* ast_parse_function(Lexer* lexer) {
         ast_error(token, "Expected type annotation after colon in function declaration, got %s\n", token->value);
     }
     Node* type = NULL;
-    if (strcmp(token->value, "ptr") == 0) {
+    if (get_data_type(token->value) == DATA_TYPE_PTR) {
         lexer_advance_cursor(lexer, 1);
         type = ast_parse_pointer_type(lexer);
     } else {
@@ -314,7 +316,7 @@ Node* ast_parse_function_argument(Lexer* lexer) {
     }
     lexer_advance_cursor(lexer, 2);
     Node* type = NULL;
-    if (strcmp(token->value, "ptr") == 0) {
+    if (get_data_type(token->value) == DATA_TYPE_PTR) {
         token = lexer_peek_token(lexer, 0);
         type = ast_parse_pointer_type(lexer);
     } else {
@@ -337,9 +339,9 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_KEYWORD);
     if (is_elif) {
-        assert(strcmp(token->value, keywords[KEYWORD_ELIF]) == 0);
+        assert(get_keyword_type(token->value) == KEYWORD_ELIF);
     } else {
-        assert(strcmp(token->value, keywords[KEYWORD_IF]) == 0);
+        assert(get_keyword_type(token->value) == KEYWORD_IF);
     }
     Node* if_statement;
     if (is_elif) {
@@ -364,18 +366,18 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
 
     token = lexer_peek_token(lexer, 0);
 
-    if (token->type == TOKEN_KEYWORD && !is_elif && strcmp(token->value, keywords[KEYWORD_ELIF]) == 0) {
+    if (token->type == TOKEN_KEYWORD && !is_elif && get_keyword_type(token->value) == KEYWORD_ELIF) {
         while (true) {
             Node* elif_statement = ast_parse_if_statement(lexer, true);
             node_add_child(if_statement, elif_statement);
             token = lexer_peek_token(lexer, 0);
-            if (token->type != TOKEN_KEYWORD || strcmp(token->value, keywords[KEYWORD_ELIF]) != 0) {
+            if (token->type != TOKEN_KEYWORD || get_keyword_type(token->value) != KEYWORD_ELIF) {
                 break;
             }
         }
     }
 
-    if (token->type == TOKEN_KEYWORD && !is_elif && strcmp(token->value, keywords[KEYWORD_ELSE]) == 0) {
+    if (token->type == TOKEN_KEYWORD && !is_elif && get_keyword_type(token->value) == KEYWORD_ELSE) {
         lexer_advance_cursor(lexer, 1);
         token = lexer_peek_token(lexer, 0);
         if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
@@ -394,7 +396,7 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
 Node* ast_parse_while_statement(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_KEYWORD);
-    assert(strcmp(token->value, keywords[KEYWORD_WHILE]) == 0);
+    assert(get_keyword_type(token->value) == KEYWORD_WHILE);
     Node* while_statement = create_node(NODE_WHILE_STATEMENT, NULL);
     lexer_advance_cursor(lexer, 1);
     Node* expression = ast_parse_expression(lexer);
@@ -756,7 +758,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 
 Node* ast_parse_pointer_type(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
-    assert(token->type == TOKEN_TYPEANNOTATION && strcmp(token->value, "ptr") == 0);
+    assert(token->type == TOKEN_TYPEANNOTATION && get_data_type(token->value) == DATA_TYPE_PTR);
     Node* pointer_type = create_node(NODE_TYPE, token->value);
     lexer_advance_cursor(lexer, 1);
     token = lexer_peek_token(lexer, 0);
@@ -768,7 +770,7 @@ Node* ast_parse_pointer_type(Lexer* lexer) {
     if (token->type != TOKEN_TYPEANNOTATION) {
         ast_error(token, "Expected type annotation after opening angle bracket in pointer type, got %s\n", token->value);
     }
-    if (strcmp(token->value, "ptr") == 0) {
+    if (get_data_type(token->value) == DATA_TYPE_PTR) {
         Node* nested_pointer_type = ast_parse_pointer_type(lexer);
         node_add_child(pointer_type, nested_pointer_type);
     } else {
@@ -793,7 +795,7 @@ Node* ast_parse_pointer_declaration(Lexer* lexer) {
     assert(token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") == 0);
     lexer_advance_cursor(lexer, 2);
     token = lexer_peek_token(lexer, 0);
-    assert(token->type == TOKEN_TYPEANNOTATION && strcmp(token->value, "ptr") == 0);
+    assert(token->type == TOKEN_TYPEANNOTATION && get_data_type(token->value) == DATA_TYPE_PTR);
     Node* type = ast_parse_pointer_type(lexer);
     Node* pointer_declaration = create_node(NODE_POINTER_DECLARATION, NULL);
     node_add_child(pointer_declaration, identifier);
@@ -896,7 +898,7 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                     // Check if the function call returns void
                     for (size_t i = 0; i < declared_functions_count; i++) {
                         if (strcmp(declared_functions[i].name, token->value) == 0) {
-                            if (strcmp(declared_functions[i].return_type, "void") == 0) {
+                            if (get_data_type(declared_functions[i].return_type) == DATA_TYPE_VOID) {
                                 ast_error(token, "Cannot use void function \"%s\" in expression\n", token->value);
                             }
                         }
