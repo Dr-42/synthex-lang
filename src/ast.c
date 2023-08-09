@@ -58,7 +58,7 @@ void ast_build(AST* ast, Lexer* lexer) {
 }
 
 Node* ast_parse_program(Lexer* lexer) {
-    Node* program = create_node(NODE_PROGRAM, NULL);
+    Node* program = create_node(NODE_PROGRAM, NULL, 0, 0);
     Token* token = lexer_peek_token(lexer, 0);
     while (token->type != TOKEN_EOF) {
         Node* statement = ast_parse_statement(lexer);
@@ -82,15 +82,15 @@ Node* ast_parse_statement(Lexer* lexer) {
         } else if (keyword_type == KEYWORD_WHILE) {
             statement = ast_parse_while_statement(lexer);
         } else if (keyword_type == KEYWORD_RET) {
-            statement = create_node(NODE_RETURN_STATEMENT, NULL);
+            statement = create_node(NODE_RETURN_STATEMENT, NULL, token->line, token->column);
             lexer_advance_cursor(lexer, 1);
             Node* expression = ast_parse_expression(lexer);
             node_add_child(statement, expression);
         } else if (keyword_type == KEYWORD_BRK) {
-            statement = create_node(NODE_BRK_STATEMENT, NULL);
+            statement = create_node(NODE_BRK_STATEMENT, NULL, token->line, token->column);
             lexer_advance_cursor(lexer, 1);
         } else if (keyword_type == KEYWORD_CONT) {
-            statement = create_node(NODE_CONT_STATEMENT, NULL);
+            statement = create_node(NODE_CONT_STATEMENT, NULL, token->line, token->column);
             lexer_advance_cursor(lexer, 1);
         } else {
             ast_error(token, "Unexpected keyword", token->value);
@@ -137,13 +137,13 @@ Node* ast_parse_statement(Lexer* lexer) {
         }
     } else if (token->type == TOKEN_PUNCTUATION) {
         if (strcmp(token->value, ";") == 0) {
-            statement = create_node(NODE_NULL_LITERAL, NULL);
+            statement = create_node(NODE_NULL_LITERAL, NULL, token->line, token->column);
         }
     } else if (token->type == TOKEN_COMMENT) {
-        statement = create_node(NODE_COMMENT, token->value);
+        statement = create_node(NODE_COMMENT, token->value, token->line, token->column);
         lexer_advance_cursor(lexer, 1);
     } else if (token->type == TOKEN_DOC_COMMENT) {
-        statement = create_node(NODE_DOC_COMMENT, token->value);
+        statement = create_node(NODE_DOC_COMMENT, token->value, token->line, token->column);
         lexer_advance_cursor(lexer, 1);
     } else if (token->type == TOKEN_OPERATOR) {
         if (strcmp(token->value, "*") == 0) {
@@ -166,13 +166,13 @@ Node* ast_parse_function(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_KEYWORD);
     assert(get_keyword_type(token->value) == KEYWORD_FNC);
-    Node* function = create_node(NODE_FUNCTION_DECLARATION, NULL);
+    Node* function = create_node(NODE_FUNCTION_DECLARATION, NULL, token->line, token->column);
     token = lexer_peek_token(lexer, 1);
     if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier after function keyword, got %s\n", token->value);
     }
 
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
     node_add_child(function, identifier);
     token = lexer_peek_token(lexer, 2);
     assert(token->type == TOKEN_PUNCTUATION && strcmp(token->value, "(") == 0 && "Function arguments must be enclosed in parentheses");
@@ -199,7 +199,7 @@ Node* ast_parse_function(Lexer* lexer) {
         lexer_advance_cursor(lexer, 1);
         type = ast_parse_pointer_type(lexer, NULL);
     } else {
-        type = create_node(NODE_TYPE, token->value);
+        type = create_node(NODE_TYPE, token->value, token->line, token->column);
         lexer_advance_cursor(lexer, 2);
     }
     node_add_child(function, type);
@@ -259,7 +259,7 @@ Node* ast_parse_function_argument(Lexer* lexer) {
     } else if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier as function argument, got %s\n", token->value);
     }
-    Node* argument = create_node(NODE_FUNCTION_ARGUMENT, token->value);
+    Node* argument = create_node(NODE_FUNCTION_ARGUMENT, token->value, token->line, token->column);
     if (is_ellipsis) {
         lexer_advance_cursor(lexer, 1);
         return argument;
@@ -278,7 +278,7 @@ Node* ast_parse_function_argument(Lexer* lexer) {
         token = lexer_peek_token(lexer, 0);
         type = ast_parse_pointer_type(lexer, NULL);
     } else {
-        type = create_node(NODE_TYPE, token->value);
+        type = create_node(NODE_TYPE, token->value, token->line, token->column);
         lexer_advance_cursor(lexer, 1);
     }
     node_add_child(argument, type);
@@ -303,9 +303,9 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
     }
     Node* if_statement;
     if (is_elif) {
-        if_statement = create_node(NODE_ELIF_STATEMENT, NULL);
+        if_statement = create_node(NODE_ELIF_STATEMENT, NULL, token->line, token->column);
     } else {
-        if_statement = create_node(NODE_IF_STATEMENT, NULL);
+        if_statement = create_node(NODE_IF_STATEMENT, NULL, token->line, token->column);
     }
     lexer_advance_cursor(lexer, 1);
     Node* expression = ast_parse_expression(lexer);
@@ -342,7 +342,7 @@ Node* ast_parse_if_statement(Lexer* lexer, bool is_elif) {
             ast_error(token, "Expected opening brace after else keyword, got %s\n", token->value);
         }
         Node* else_block = ast_parse_block(lexer);
-        Node* else_statement = create_node(NODE_ELSE_STATEMENT, NULL);
+        Node* else_statement = create_node(NODE_ELSE_STATEMENT, NULL, token->line, token->column);
         node_add_child(if_statement, else_statement);
         node_add_child(else_statement, else_block);
         lexer_advance_cursor(lexer, 1);
@@ -355,7 +355,7 @@ Node* ast_parse_while_statement(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_KEYWORD);
     assert(get_keyword_type(token->value) == KEYWORD_WHILE);
-    Node* while_statement = create_node(NODE_WHILE_STATEMENT, NULL);
+    Node* while_statement = create_node(NODE_WHILE_STATEMENT, NULL, token->line, token->column);
     lexer_advance_cursor(lexer, 1);
     Node* expression = ast_parse_expression(lexer);
     if (strcmp(lexer_peek_token(lexer, 0)->value, ")") == 0) {
@@ -380,7 +380,7 @@ Node* ast_parse_block(Lexer* lexer) {
         ast_error(token, "Expected opening brace at beginning of block, got %s\n", token->value);
     }
 
-    Node* block = create_node(NODE_BLOCK_STATEMENT, NULL);
+    Node* block = create_node(NODE_BLOCK_STATEMENT, NULL, token->line, token->column);
     lexer_advance_cursor(lexer, 1);
     while (true) {
         token = lexer_peek_token(lexer, 0);
@@ -405,14 +405,14 @@ Node* ast_parse_variable_declaration(Lexer* lexer) {
         ast_error(token, "Expected identifier as left-hand side of variable declaration, got %s\n", token->value);
     }
 
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
     token = lexer_peek_token(lexer, 1);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") == 0) {
         token = lexer_peek_token(lexer, 2);
         if (token->type != TOKEN_TYPEANNOTATION) {
             ast_error(token, "Expected type annotation after colon in variable declaration, got %s\n", token->value);
         }
-        Node* type = create_node(NODE_TYPE, token->value);
+        Node* type = create_node(NODE_TYPE, token->value, token->line, token->column);
         token = lexer_peek_token(lexer, 3);
 
         Variable* variable = ast_data_variable_create(identifier->data, get_data_type(type->data));
@@ -441,12 +441,12 @@ Node* ast_parse_array_declaration(Lexer* lexer) {
         ast_error(token, "Expected identifier as left-hand side of array declaration, got %s\n", token->value);
     }
 
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
     token = lexer_peek_token(lexer, 3);
     if (token->type != TOKEN_TYPEANNOTATION) {
         ast_error(token, "Expected type annotation after colon in array declaration, got %s\n", token->value);
     }
-    Node* type = create_node(NODE_TYPE, token->value);
+    Node* type = create_node(NODE_TYPE, token->value, token->line, token->column);
 
     size_t idx = 4;
     size_t array_dims_count = 0;
@@ -467,13 +467,13 @@ Node* ast_parse_array_declaration(Lexer* lexer) {
         if (token->type != TOKEN_NUMBER) {
             ast_error(token, "Expected number as array size, got %s\n", token->value);
         }
-        Node* array_dim = create_node(NODE_NUMERIC_LITERAL, token->value);
+        Node* array_dim = create_node(NODE_NUMERIC_LITERAL, token->value, token->line, token->column);
         array_dims[array_dims_count] = array_dim;
         array_dims_count++;
         idx++;
     }
 
-    Node* array_declaration = create_node(NODE_ARRAY_DECLARATION, NULL);
+    Node* array_declaration = create_node(NODE_ARRAY_DECLARATION, NULL, token->line, token->column);
     node_add_child(array_declaration, identifier);
     node_add_child(array_declaration, type);
     for (size_t i = 0; i < array_dims_count; i++) {
@@ -506,7 +506,7 @@ Node* ast_parse_assignment(Lexer* lexer) {
     if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier as left-hand side of assignment, got %s\n", token->value);
     }
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
     token = lexer_peek_token(lexer, 1);
 
     if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
@@ -533,7 +533,7 @@ Node* ast_parse_assignment(Lexer* lexer) {
 
         lexer_advance_cursor(lexer, 2);
         Node* expression = ast_parse_expression(lexer);
-        Node* assignment = create_node(NODE_ASSIGNMENT, NULL);
+        Node* assignment = create_node(NODE_ASSIGNMENT, NULL, token->line, token->column);
         node_add_child(assignment, identifier);
         node_add_child(assignment, expression);
         return assignment;
@@ -544,9 +544,9 @@ Node* ast_parse_assignment(Lexer* lexer) {
 }
 
 Node* ast_parse_array_expression(Lexer* lexer, size_t array_dim) {
-    Node* array_expression = create_node(NODE_ARRAY_EXPRESSION, NULL);
+    Token* token = lexer_peek_token(lexer, 0);
+    Node* array_expression = create_node(NODE_ARRAY_EXPRESSION, NULL, token->line, token->column);
     if (array_dim == 1) {
-        Token* token = lexer_peek_token(lexer, 0);
         if (token->type != TOKEN_PUNCTUATION && strcmp(token->value, "[") != 0) {
             ast_error(token, "Expected opening bracket in array expression, got %s\n", token->value);
         }
@@ -561,7 +561,6 @@ Node* ast_parse_array_expression(Lexer* lexer, size_t array_dim) {
             node_add_child(array_expression, expression);
         }
     } else {
-        Token* token = lexer_peek_token(lexer, 0);
         if (token->type != TOKEN_PUNCTUATION && strcmp(token->value, "[") != 0) {
             ast_error(token, "Expected opening bracket in array expression, got %s\n", token->value);
         }
@@ -581,7 +580,7 @@ Node* ast_parse_array_expression(Lexer* lexer, size_t array_dim) {
             }
         }
     }
-    Token* token = lexer_peek_token(lexer, 0);
+    token = lexer_peek_token(lexer, 0);
     if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, ";") == 0) {
         lexer_advance_cursor(lexer, 1);
     }
@@ -626,13 +625,13 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     if (!is_pointer) {
         size_t array_dim = ast_data->arrays[array_idx].dimension;
 
-        Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+        Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
         token = lexer_peek_token(lexer, 1);
         if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
             // Assigning the entire array
             lexer_advance_cursor(lexer, 2);
             Node* expression = ast_parse_array_expression(lexer, array_dim);
-            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL, token->line, token->column);
             node_add_child(assignment, identifier);
             node_add_child(assignment, expression);
             return assignment;
@@ -659,7 +658,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 
             lexer_advance_cursor(lexer, 1);
             Node* expression = ast_parse_expression(lexer);
-            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL, token->line, token->column);
             node_add_child(assignment, identifier);
             node_add_child(assignment, expression);
             return assignment;
@@ -667,13 +666,13 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
             ast_error(token, "Expected assignment operator or opening bracket after identifier in array assignment, got %s\n", token->value);
         }
     } else {
-        Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+        Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
         token = lexer_peek_token(lexer, 1);
         if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
             // Assigning the entire array
             lexer_advance_cursor(lexer, 2);
             Node* expression = ast_parse_expression(lexer);
-            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL, token->line, token->column);
             node_add_child(assignment, identifier);
             node_add_child(assignment, expression);
             return assignment;
@@ -700,7 +699,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 
             lexer_advance_cursor(lexer, 1);
             Node* expression = ast_parse_expression(lexer);
-            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL);
+            Node* assignment = create_node(NODE_ARRAY_ASSIGNMENT, NULL, token->line, token->column);
             node_add_child(assignment, identifier);
             node_add_child(assignment, expression);
             return assignment;
@@ -714,7 +713,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
 Node* ast_parse_pointer_type(Lexer* lexer, size_t* ptr_depth) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_TYPEANNOTATION && get_data_type(token->value) == DATA_TYPE_PTR);
-    Node* pointer_type = create_node(NODE_TYPE, token->value);
+    Node* pointer_type = create_node(NODE_TYPE, token->value, token->line, token->column);
     lexer_advance_cursor(lexer, 1);
     token = lexer_peek_token(lexer, 0);
     if (token->type != TOKEN_OPERATOR || strcmp(token->value, "<") != 0) {
@@ -732,7 +731,7 @@ Node* ast_parse_pointer_type(Lexer* lexer, size_t* ptr_depth) {
             *ptr_depth += 1;
         }
     } else {
-        Node* type = create_node(NODE_TYPE, token->value);
+        Node* type = create_node(NODE_TYPE, token->value, token->line, token->column);
         node_add_child(pointer_type, type);
         lexer_advance_cursor(lexer, 1);
     }
@@ -748,7 +747,7 @@ Node* ast_parse_pointer_type(Lexer* lexer, size_t* ptr_depth) {
 Node* ast_parse_pointer_declaration(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
     assert(token->type == TOKEN_IDENTIFIER);
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
     token = lexer_peek_token(lexer, 1);
     assert(token->type == TOKEN_PUNCTUATION && strcmp(token->value, ":") == 0);
     lexer_advance_cursor(lexer, 2);
@@ -756,7 +755,7 @@ Node* ast_parse_pointer_declaration(Lexer* lexer) {
     assert(token->type == TOKEN_TYPEANNOTATION && get_data_type(token->value) == DATA_TYPE_PTR);
     size_t ptr_depth = 0;
     Node* type = ast_parse_pointer_type(lexer, &ptr_depth);
-    Node* pointer_declaration = create_node(NODE_POINTER_DECLARATION, NULL);
+    Node* pointer_declaration = create_node(NODE_POINTER_DECLARATION, NULL, token->line, token->column);
     node_add_child(pointer_declaration, identifier);
     node_add_child(pointer_declaration, type);
 
@@ -799,7 +798,7 @@ Node* ast_parse_pointer_deref(Lexer* lexer) {
     if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier after pointer dereference, got %s\n", token->value);
     }
-    Node* pointer_deref = create_node(NODE_POINTER_DEREF, token->value);
+    Node* pointer_deref = create_node(NODE_POINTER_DEREF, token->value, token->line, token->column);
 
     lexer_advance_cursor(lexer, 1);
     token = lexer_peek_token(lexer, 0);
@@ -857,7 +856,7 @@ const char* binary_precedence[] = {
 
 Node* ast_parse_expression_flat(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
-    Node* expression = create_node(NODE_EXPRESSION, NULL);
+    Node* expression = create_node(NODE_EXPRESSION, NULL, token->line, token->column);
     size_t paren_count = 0;
     while (true) {
         token = lexer_peek_token(lexer, 0);
@@ -878,7 +877,7 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                     node_add_child(expression, call_exp);
                 } else if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "[") == 0) {
                     lexer_advance_cursor(lexer, 1);
-                    Node* array_element = create_node(NODE_ARRAY_ELEMENT, token->value);
+                    Node* array_element = create_node(NODE_ARRAY_ELEMENT, token->value, token->line, token->column);
                     while (true) {
                         Node* array_index = ast_parse_array_index(lexer);
                         node_add_child(array_element, array_index);
@@ -891,32 +890,32 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                     node_add_child(expression, array_element);
                     break;
                 } else {
-                    node_add_child(expression, create_node(NODE_IDENTIFIER, token->value));
+                    node_add_child(expression, create_node(NODE_IDENTIFIER, token->value, token->line, token->column));
                 }
                 break;
             }
             case TOKEN_STRING:
-                node_add_child(expression, create_node(NODE_STRING_LITERAL, token->value));
+                node_add_child(expression, create_node(NODE_STRING_LITERAL, token->value, token->line, token->column));
                 break;
             case TOKEN_NUMBER:
-                node_add_child(expression, create_node(NODE_NUMERIC_LITERAL, token->value));
+                node_add_child(expression, create_node(NODE_NUMERIC_LITERAL, token->value, token->line, token->column));
                 break;
             case TOKEN_FLOAT_NUM:
-                node_add_child(expression, create_node(NODE_FLOAT_LITERAL, token->value));
+                node_add_child(expression, create_node(NODE_FLOAT_LITERAL, token->value, token->line, token->column));
                 break;
             case TOKEN_KEYWORD:
                 if (get_keyword_type(token->value) == KEYWORD_TRUE) {
-                    node_add_child(expression, create_node(NODE_TRUE_LITERAL, token->value));
+                    node_add_child(expression, create_node(NODE_TRUE_LITERAL, token->value, token->line, token->column));
                 } else if (get_keyword_type(token->value) == KEYWORD_FALSE) {
-                    node_add_child(expression, create_node(NODE_FALSE_LITERAL, token->value));
+                    node_add_child(expression, create_node(NODE_FALSE_LITERAL, token->value, token->line, token->column));
                 } else if (get_keyword_type(token->value) == KEYWORD_NULL) {
-                    node_add_child(expression, create_node(NODE_NULL_LITERAL, token->value));
+                    node_add_child(expression, create_node(NODE_NULL_LITERAL, token->value, token->line, token->column));
                 } else {
                     ast_error(token, "Unexpected keyword in expression: %s\n", token->value);
                 }
                 break;
             case TOKEN_OPERATOR:
-                node_add_child(expression, create_node(NODE_OPERATOR, token->value));
+                node_add_child(expression, create_node(NODE_OPERATOR, token->value, token->line, token->column));
                 break;
             case TOKEN_PUNCTUATION:
                 if (strcmp(token->value, "(") == 0) {
@@ -1021,7 +1020,7 @@ Node* ast_expression_descent(Node* expression) {
                 } else {
                     for (size_t j = 0; j < array_length(unary_precedence); j++) {
                         if (strcmp(child->data, unary_precedence[j]) == 0) {
-                            Node* new_expression = create_node(NODE_EXPRESSION, NULL);
+                            Node* new_expression = create_node(NODE_EXPRESSION, NULL, child->line, child->column);
                             node_add_child(new_expression, child);
                             node_add_child(new_expression, next_child);
                             expression->children[i] = new_expression;
@@ -1036,7 +1035,7 @@ Node* ast_expression_descent(Node* expression) {
                 if (child->type == NODE_OPERATOR && next_child->type == NODE_OPERATOR) {
                     for (size_t j = 0; j < array_length(unary_precedence); j++) {
                         if (strcmp(child->data, unary_precedence[j]) == 0) {
-                            Node* new_expression = create_node(NODE_EXPRESSION, NULL);
+                            Node* new_expression = create_node(NODE_EXPRESSION, NULL, child->line, child->column);
                             node_add_child(new_expression, next_child);
                             node_add_child(new_expression, expression->children[i + 2]);
 
@@ -1073,18 +1072,22 @@ Node* ast_expression_descent(Node* expression) {
         if (lowest_precedence_idx == -1) {
             node_error(expression, "Expected binary operator in expression of length > 3");
         }
-        Node* left_expression = create_node(NODE_EXPRESSION, NULL);
-        Node* right_expression = create_node(NODE_EXPRESSION, NULL);
+        Node* left_expression = create_node(NODE_EXPRESSION, NULL, 0, 0);
+        Node* right_expression = create_node(NODE_EXPRESSION, NULL, 0, 0);
         for (size_t i = 0; i < expression->num_children; i++) {
             Node* child = expression->children[i];
             if (i < lowest_precedence_idx) {
+                left_expression->line = child->line;
+                left_expression->column = child->column;
                 node_add_child(left_expression, child);
             } else if (i > lowest_precedence_idx) {
+                right_expression->line = child->line;
+                right_expression->column = child->column;
                 node_add_child(right_expression, child);
             }
         }
         Node* operator= expression->children[lowest_precedence_idx];
-        Node* new_expression = create_node(NODE_EXPRESSION, NULL);
+        Node* new_expression = create_node(NODE_EXPRESSION, NULL, expression->line, expression->column);
         node_add_child(new_expression, ast_expression_descent(left_expression));
         node_add_child(new_expression, operator);
         node_add_child(new_expression, ast_expression_descent(right_expression));
@@ -1103,7 +1106,7 @@ Node* ast_parse_expression(Lexer* lexer) {
 
 Node* ast_parse_array_index(Lexer* lexer) {
     Token* token = lexer_peek_token(lexer, 0);
-    Node* array_index = create_node(NODE_EXPRESSION, NULL);
+    Node* array_index = create_node(NODE_EXPRESSION, NULL, token->line, token->column);
     if (token->type != TOKEN_PUNCTUATION && strcmp(token->value, "[") != 0) {
         ast_error(token, "Expected opening bracket in array index, got %s\n", token->value);
     }
@@ -1114,13 +1117,13 @@ Node* ast_parse_array_index(Lexer* lexer) {
             lexer_advance_cursor(lexer, 1);
             break;
         } else if (token->type == TOKEN_IDENTIFIER) {
-            Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+            Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
             node_add_child(array_index, identifier);
         } else if (token->type == TOKEN_NUMBER) {
-            Node* numeric_literal = create_node(NODE_NUMERIC_LITERAL, token->value);
+            Node* numeric_literal = create_node(NODE_NUMERIC_LITERAL, token->value, token->line, token->column);
             node_add_child(array_index, numeric_literal);
         } else if (token->type == TOKEN_OPERATOR) {
-            Node* operator= create_node(NODE_OPERATOR, token->value);
+            Node* operator= create_node(NODE_OPERATOR, token->value, token->line, token->column);
             node_add_child(array_index, operator);
         } else if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "[") == 0) {
             Node* array_index_child = ast_parse_array_index(lexer);
@@ -1149,8 +1152,8 @@ Node* ast_parse_call_expression(Lexer* lexer) {
         }
     }
 
-    Node* call_expression = create_node(NODE_CALL_EXPRESSION, NULL);
-    Node* identifier = create_node(NODE_IDENTIFIER, token->value);
+    Node* call_expression = create_node(NODE_CALL_EXPRESSION, NULL, token->line, token->column);
+    Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
     node_add_child(call_expression, identifier);
     token = lexer_peek_token(lexer, 1);
     if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "(") != 0) {

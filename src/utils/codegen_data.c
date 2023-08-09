@@ -1,5 +1,8 @@
 #include "utils/codegen_data.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 CodegenData* codegen_data_create(LLVMModuleRef module, LLVMContextRef context) {
     CodegenData* data = malloc(sizeof(CodegenData));
     data->functions = NULL;

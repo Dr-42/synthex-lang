@@ -46,9 +46,11 @@ typedef struct Node {
     Node** children;
     Node* parent;
     size_t num_children;
+    size_t line;
+    size_t column;
 } Node;
 
-Node* create_node(NodeType type, void* data);
+Node* create_node(NodeType type, void* data, size_t line, size_t column);
 void destroy_node(Node* node);
 void node_add_child(Node* parent, Node* child);
 

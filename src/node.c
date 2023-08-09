@@ -16,12 +16,14 @@
 #define ANSI_COLOR_RESET ""
 #endif
 
-Node* create_node(NodeType type, void* data) {
+Node* create_node(NodeType type, void* data, size_t line, size_t column) {
     Node* node = calloc(1, sizeof(Node));
     node->type = type;
     node->data = data;
     node->children = NULL;
     node->num_children = 0;
+    node->line = line;
+    node->column = column;
     return node;
 }
 

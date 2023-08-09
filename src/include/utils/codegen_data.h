@@ -54,7 +54,7 @@ typedef struct CodegenData {
     LLVMContextRef context;
 } CodegenData;
 
-CodegenData* codegen_data_create();
+CodegenData* codegen_data_create(LLVMModuleRef module, LLVMContextRef context);
 void codegen_data_destroy(CodegenData* data);
 
 void codegen_data_add_function(CodegenData* data, CodegenData_Function* function);
