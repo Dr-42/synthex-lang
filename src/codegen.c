@@ -7,38 +7,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "utils/codegen_data.h"
+
 extern const char* types[];
 extern const size_t TYPE_COUNT;
 
+CodegenData* codegen_data;
+
 LLVMTypeRef* llvm_types;
-
-LLVMTypeRef functionReturns[100] = {0};
-const char* functionNames[100] = {0};
-bool functionIsVararg[100] = {0};
-size_t functionCount = 0;
-LLVMValueRef current_function = NULL;
-
-LLVMValueRef current_scope_variables[100] = {0};
-LLVMTypeRef current_scope_variable_types[100] = {0};
-const char* current_scope_variable_names[100] = {0};
-size_t current_scope_variable_count = 0;
-
-LLVMValueRef current_scope_arrays[100] = {0};
-LLVMTypeRef current_scope_array_types[100] = {0};
-LLVMTypeRef current_scope_array_element_types[100] = {0};
-const char* current_scope_array_names[100] = {0};
-size_t current_scope_array_dims[100] = {0};
-size_t current_scope_array_count = 0;
-
-LLVMValueRef current_scope_pointers[100] = {0};
-LLVMTypeRef current_scope_pointer_types[100] = {0};
-const char* current_scope_pointer_names[100] = {0};
-LLVMTypeRef current_scope_pointer_base_types[100] = {0};
-size_t current_scope_pointer_count = 0;
-
-LLVMBasicBlockRef while_merge_block = NULL;
-LLVMBasicBlockRef while_cond_block = NULL;
-
 void convert_all_types(LLVMContextRef ctx) {
     llvm_types = calloc(TYPE_COUNT, sizeof(LLVMTypeRef));
     llvm_types[DATA_TYPE_I8] = LLVMInt8TypeInContext(ctx);
@@ -60,6 +36,8 @@ void ast_to_llvm(AST* ast, const char* filename) {
     LLVMModuleRef module = LLVMModuleCreateWithNameInContext(filename, ctx);
     LLVMBuilderRef builder = LLVMCreateBuilderInContext(ctx);
 
+    codegen_data = codegen_data_create(module, ctx);
+
     convert_all_types(ctx);
 
     visit_node(ast->root, module, builder);
@@ -77,7 +55,7 @@ void ast_to_llvm(AST* ast, const char* filename) {
     LLVMCreateExecutionEngineForModule(&engine, module, &error);
 
     // Emit .ll file
-    char* ll_filename = strcat(filename, ".ll");
+    const char* ll_filename = strcat(filename, ".ll");
     // delete the file if exists
     remove(ll_filename);
     LLVMPrintModuleToFile(module, ll_filename, &error);
@@ -146,10 +124,10 @@ LLVMValueRef visit_node(Node* node, LLVMModuleRef module, LLVMBuilderRef builder
             return visit_node_array_element(node, module, builder);
             break;
         case NODE_IF_STATEMENT:
-            visit_node_if_statement(node, module, builder, current_function, functionReturns[functionCount - 1]);
+            visit_node_if_statement(node, module, builder, codegen_data->current_function->function, codegen_data->current_function->return_type);
             break;
         case NODE_WHILE_STATEMENT:
-            visit_node_while_statement(node, module, builder, current_function, functionReturns[functionCount - 1]);
+            visit_node_while_statement(node, module, builder, codegen_data->current_function->function, codegen_data->current_function->return_type);
             break;
         case NODE_NUMERIC_LITERAL:
             return visit_node_numeric_literal(node, module, builder);
@@ -173,15 +151,15 @@ LLVMValueRef visit_node(Node* node, LLVMModuleRef module, LLVMBuilderRef builder
             return visit_node_null_literal(node, module, builder);
             break;
         case NODE_BRK_STATEMENT:
-            if (while_merge_block != NULL && while_cond_block != NULL) {
-                LLVMBuildBr(builder, while_merge_block);
+            if (codegen_data->while_merge_block != NULL && codegen_data->while_cond_block != NULL) {
+                LLVMBuildBr(builder, codegen_data->while_merge_block);
             } else {
                 fprintf(stderr, "Error: Break statement outside of loop\n");
             }
             break;
         case NODE_CONT_STATEMENT:
-            if (while_cond_block != NULL && while_merge_block != NULL) {
-                LLVMBuildBr(builder, while_cond_block);
+            if (codegen_data->while_cond_block != NULL && codegen_data->while_merge_block != NULL) {
+                LLVMBuildBr(builder, codegen_data->while_cond_block);
             } else {
                 fprintf(stderr, "Error: Continue statement outside of loop\n");
             }
@@ -220,10 +198,8 @@ void visit_node_variable_declaration(Node* node, LLVMModuleRef module, LLVMBuild
         // Allocate variable
         LLVMValueRef variable = LLVMBuildAlloca(builder, type, var_name);
         //  Add variable to current scope
-        current_scope_variables[current_scope_variable_count] = variable;
-        current_scope_variable_names[current_scope_variable_count] = var_name;
-        current_scope_variable_types[current_scope_variable_count] = type;
-        current_scope_variable_count++;
+        CodegenData_Variable* var = codegen_data_create_variable(var_name, variable, type);
+        codegen_data_add_variable(codegen_data, var);
     } else {
         printf("Error: Variable '%s' could not be declared\n", var_name);
     }
@@ -296,7 +272,7 @@ void visit_node_function_declaration(Node* node, LLVMModuleRef module, LLVMBuild
             Node* child = node->children[i];
             if (child->type == NODE_FUNCTION_ARGUMENT) {
                 if (strcmp(child->data, "...") == 0) {
-                    functionIsVararg[functionCount] = true;
+                    is_vararg = true;
                     arg_types[arg_index] = LLVMPointerType(LLVMVoidType(), 0);
                     arg_names[arg_index] = child->data;
                     arg_index++;
@@ -354,18 +330,16 @@ void visit_node_function_declaration(Node* node, LLVMModuleRef module, LLVMBuild
         LLVMTypeRef func_type = LLVMFunctionType(return_type, arg_types, arg_count, is_vararg);
         LLVMValueRef func = LLVMAddFunction(module, func_name, func_type);
 
-        functionNames[functionCount] = func_name;
-        functionReturns[functionCount] = return_type;
-        functionCount++;
-
-        current_scope_variable_count = 0;
-
+        LLVMValueRef* args = calloc(arg_count, sizeof(LLVMValueRef));
         for (size_t i = 0; i < arg_count; i++) {
-            LLVMValueRef arg = LLVMGetParam(func, i);
-            LLVMSetValueName2(arg, arg_names[i], strlen(arg_names[i]));
+            args[i] = LLVMGetParam(func, i);
+            LLVMSetValueName2(args[i], arg_names[i], strlen(arg_names[i]));
         }
+        CodegenData_Function* function = codegen_data_create_function(func_name, func, return_type, arg_types, args, arg_count, is_vararg);
+        codegen_data_add_function(codegen_data, function);
 
-        current_function = func;
+        codegen_data_reset_scope(codegen_data);
+        codegen_data->current_function = function;
 
         for (size_t i = 0; i < node->num_children; i++) {
             Node* child = node->children[i];
@@ -427,11 +401,8 @@ void visit_node_pointer_declaration(Node* node, LLVMModuleRef module, LLVMBuilde
         // Allocate variable
         LLVMValueRef pointer = LLVMBuildAlloca(builder, type, var_name);
         //  Add pointer to current scope
-        current_scope_pointers[current_scope_pointer_count] = pointer;
-        current_scope_pointer_names[current_scope_pointer_count] = var_name;
-        current_scope_pointer_types[current_scope_pointer_count] = type;
-        current_scope_pointer_base_types[current_scope_pointer_count] = base_type;
-        current_scope_pointer_count++;
+        CodegenData_Pointer* pointer_data = codegen_data_create_pointer(var_name, pointer, type, base_type, pointer_degree);
+        codegen_data_add_pointer(codegen_data, pointer_data);
 
     } else {
         printf("Error: Variable '%s' could not be declared\n", var_name);
@@ -445,9 +416,9 @@ void visit_node_pointer_deref(Node* node, LLVMModuleRef module, LLVMBuilderRef b
     bool found = false;
 
     // Check if the pointer is one of the function arguments
-    uint32_t arg_count = LLVMCountParams(current_function);
+    uint32_t arg_count = codegen_data->current_function->parameter_count;
     for (size_t i = 0; i < arg_count; i++) {
-        LLVMValueRef arg = LLVMGetParam(current_function, i);
+        LLVMValueRef arg = LLVMGetParam(codegen_data->current_function->function, i);
         const char* arg_name = LLVMGetValueName(arg);
         if (strcmp(pointer_name, arg_name) == 0) {
             pointer = arg;
@@ -456,14 +427,11 @@ void visit_node_pointer_deref(Node* node, LLVMModuleRef module, LLVMBuilderRef b
         }
     }
 
+    CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, pointer_name);
     if (!found) {
-        for (size_t i = 0; i < current_scope_pointer_count; i++) {
-            if (strcmp(pointer_name, current_scope_pointer_names[i]) == 0) {
-                pointer = current_scope_pointers[i];
-                found = true;
-                idx = i;
-                break;
-            }
+        if (pointer_data != NULL) {
+            pointer = pointer_data->pointer;
+            found = true;
         }
     }
 
@@ -609,11 +577,11 @@ void visit_node_while_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef
     LLVMAppendExistingBasicBlock(func, while_cond_check_block);
     LLVMPositionBuilderAtEnd(builder, while_cond_check_block);
 
-    LLVMBasicBlockRef prev_while_cond_block = while_cond_block;
-    LLVMBasicBlockRef prev_while_merge_block = while_merge_block;
+    LLVMBasicBlockRef prev_while_cond_block = codegen_data->while_cond_block;
+    LLVMBasicBlockRef prev_while_merge_block = codegen_data->while_merge_block;
 
-    while_cond_block = while_cond_check_block;
-    while_merge_block = merge_block;
+    codegen_data->while_cond_block = while_cond_check_block;
+    codegen_data->while_merge_block = merge_block;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
             condition = visit_node_expression(node->children[i], module, builder);
@@ -633,8 +601,8 @@ void visit_node_while_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef
         LLVMPositionBuilderAtEnd(builder, merge_block);
     }
 
-    while_cond_block = prev_while_cond_block;
-    while_merge_block = prev_while_merge_block;
+    codegen_data->while_cond_block = prev_while_cond_block;
+    codegen_data->while_merge_block = prev_while_merge_block;
     return;
 }
 
@@ -662,7 +630,7 @@ void visit_node_assignment(Node* node, LLVMModuleRef module, LLVMBuilderRef buil
 LLVMValueRef visit_node_identifier(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, bool deref) {
     const char* identifier = node->data;
     // LLVMBasicBlockRef currentBlock = LLVMGetInsertBlock(builder);
-    LLVMValueRef currentFunction = current_function;
+    LLVMValueRef currentFunction = codegen_data->current_function->function;
     unsigned int paramCount = LLVMCountParams(currentFunction);
 
     LLVMValueRef value = NULL;
@@ -678,11 +646,11 @@ LLVMValueRef visit_node_identifier(Node* node, LLVMModuleRef module, LLVMBuilder
 
     // Check if variable is in the current scope
     if (value == NULL) {
-        for (int i = 0; i < current_scope_variable_count; i++) {
-            if (strcmp(current_scope_variable_names[i], identifier) == 0) {
-                value = current_scope_variables[i];
+        for (int i = 0; i < codegen_data->variable_count; i++) {
+            if (strcmp(codegen_data->variables[i]->variable_name, identifier) == 0) {
+                value = codegen_data->variables[i]->variable;
                 if (deref) {
-                    value = LLVMBuildLoad2(builder, current_scope_variable_types[i], value, identifier);
+                    value = LLVMBuildLoad2(builder, codegen_data->variables[i]->variable_type, value, identifier);
                 }
                 break;
             }
@@ -691,11 +659,11 @@ LLVMValueRef visit_node_identifier(Node* node, LLVMModuleRef module, LLVMBuilder
 
     // Check if pointer is in the current scope
     if (value == NULL) {
-        for (int i = 0; i < current_scope_pointer_count; i++) {
-            if (strcmp(current_scope_pointer_names[i], identifier) == 0) {
-                value = current_scope_pointers[i];
+        for (int i = 0; i < codegen_data->pointer_count; i++) {
+            if (strcmp(codegen_data->pointers[i]->pointer_name, identifier) == 0) {
+                value = codegen_data->pointers[i]->pointer;
                 if (deref) {
-                    value = LLVMBuildLoad2(builder, current_scope_pointer_types[i], value, identifier);
+                    value = LLVMBuildLoad2(builder, codegen_data->pointers[i]->pointer_type, value, identifier);
                 }
                 break;
             }
@@ -989,12 +957,9 @@ void visit_node_array_declaration(Node* node, LLVMModuleRef module, LLVMBuilderR
 
         array = LLVMBuildAlloca(builder, array_type, array_name);
 
-        current_scope_arrays[current_scope_array_count] = array;
-        current_scope_array_names[current_scope_array_count] = array_name;
-        current_scope_array_types[current_scope_array_count] = array_type;
-        current_scope_array_element_types[current_scope_array_count] = array_element_type;
-        current_scope_array_dims[current_scope_array_count] = num_dimensions;
-        current_scope_array_count++;
+        CodegenData_Array* array_data = codegen_data_create_array(array_name, array, array_type, array_element_type, num_dimensions);
+        codegen_data_add_array(codegen_data, array_data);
+
     } else {
         printf("Error: Array '%s' could not be declared\n", array_name);
     }
@@ -1019,24 +984,18 @@ void visit_node_array_assignment(Node* node, LLVMModuleRef module, LLVMBuilderRe
     size_t idx = 0;
     bool found = false;
     bool is_pointer = false;
-    for (int i = 0; i < current_scope_array_count; i++) {
-        if (strcmp(current_scope_array_names[i], array_name) == 0) {
-            array = current_scope_arrays[i];
-            idx = i;
-            found = true;
-            break;
-        }
+    CodegenData_Array* array_data = codegen_data_get_array(codegen_data, array_name);
+    if (array_data != NULL) {
+        array = array_data->array;
+        found = true;
     }
 
+    CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, array_name);
     if (!found) {
-        for (int i = 0; i < current_scope_pointer_count; i++) {
-            if (strcmp(current_scope_pointer_names[i], array_name) == 0) {
-                array = current_scope_pointers[i];
-                idx = i;
-                found = true;
-                is_pointer = true;
-                break;
-            }
+        if (pointer_data != NULL) {
+            array = pointer_data->pointer;
+            found = true;
+            is_pointer = true;
         }
     }
 
@@ -1046,9 +1005,9 @@ void visit_node_array_assignment(Node* node, LLVMModuleRef module, LLVMBuilderRe
     }
 
     if (!is_pointer) {
-        size_t num_dimensions = current_scope_array_dims[idx];
-        LLVMTypeRef array_type = current_scope_array_types[idx];
-        LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
+        size_t num_dimensions = array_data->array_dim;
+        LLVMTypeRef array_type = array_data->array_type;
+        LLVMTypeRef array_element_type = array_data->array_element_type;
 
         LLVMValueRef zero_index = LLVMConstInt(LLVMInt32Type(), 0, false);
 
@@ -1068,8 +1027,8 @@ void visit_node_array_assignment(Node* node, LLVMModuleRef module, LLVMBuilderRe
         LLVMSetIsInBounds(gep, true);
         LLVMBuildStore(builder, value, gep);
     } else {
-        LLVMTypeRef array_type = current_scope_pointer_types[idx];
-        LLVMTypeRef array_element_type = LLVMGetElementType(array_type);
+        LLVMTypeRef array_type = pointer_data->pointer_type;
+        LLVMTypeRef array_element_type = pointer_data->pointer_base_type;
 
         size_t num_dimensions = iden->num_children;
         size_t ind = 0;
@@ -1100,24 +1059,18 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMModuleRef module, LLVMBuil
     bool found = false;
     bool is_pointer = false;
     size_t idx = 0;
-    for (int i = 0; i < current_scope_array_count; i++) {
-        if (strcmp(current_scope_array_names[i], array_name) == 0) {
-            array = current_scope_arrays[i];
-            idx = i;
-            found = true;
-            break;
-        }
+    CodegenData_Array* array_data = codegen_data_get_array(codegen_data, array_name);
+    if (array_data != NULL) {
+        array = array_data->array;
+        found = true;
     }
 
+    CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, array_name);
     if (!found) {
-        for (int i = 0; i < current_scope_pointer_count; i++) {
-            if (strcmp(current_scope_pointer_names[i], array_name) == 0) {
-                array = current_scope_pointers[i];
-                idx = i;
-                found = true;
-                is_pointer = true;
-                break;
-            }
+        if (pointer_data != NULL) {
+            array = pointer_data->pointer;
+            found = true;
+            is_pointer = true;
         }
     }
 
@@ -1127,9 +1080,9 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMModuleRef module, LLVMBuil
     }
 
     if (!is_pointer) {
-        size_t num_dimensions = current_scope_array_dims[idx];
-        LLVMTypeRef array_type = current_scope_array_types[idx];
-        LLVMTypeRef array_element_type = current_scope_array_element_types[idx];
+        size_t num_dimensions = array_data->array_dim;
+        LLVMTypeRef array_type = array_data->array_type;
+        LLVMTypeRef array_element_type = array_data->array_element_type;
 
         LLVMValueRef zero_index = LLVMConstInt(LLVMInt32Type(), 0, false);
 
@@ -1150,8 +1103,8 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMModuleRef module, LLVMBuil
         value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
         return value;
     } else {
-        LLVMTypeRef array_type = current_scope_pointer_types[idx];
-        LLVMTypeRef array_element_type = LLVMGetElementType(array_type);
+        LLVMTypeRef array_type = pointer_data->pointer_type;
+        LLVMTypeRef array_element_type = pointer_data->pointer_base_type;
 
         size_t num_dimensions = node->num_children;
         size_t ind = 0;
@@ -1194,11 +1147,10 @@ LLVMValueRef visit_node_call_expression(Node* node, LLVMModuleRef module, LLVMBu
 
     // Get return type
     bool is_function_vararg = false;
-    for (size_t i = 0; i < functionCount; i++) {
-        if (strcmp(functionNames[i], function_name) == 0) {
-            ret_type = functionReturns[i];
-            is_function_vararg = functionIsVararg[i];
-        }
+    CodegenData_Function* function_data = codegen_data_get_function(codegen_data, function_name);
+    if (function_data != NULL) {
+        ret_type = function_data->return_type;
+        is_function_vararg = function_data->is_vararg;
     }
 
     if (ret_type == NULL) {

@@ -82,13 +82,14 @@ void codegen_data_add_pointer(CodegenData* data, CodegenData_Pointer* pointer) {
     data->pointer_count++;
 }
 
-CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMValueRef function, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, size_t parameter_count, bool is_vararg) {
+CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMValueRef function, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, LLVMValueRef* parameters, size_t parameter_count, bool is_vararg) {
     CodegenData_Function* function_data = malloc(sizeof(CodegenData_Function));
     function_data->function_name = function_name;
     function_data->function = function;
     function_data->return_type = return_type;
     function_data->parameter_types = parameter_types;
     function_data->parameter_count = parameter_count;
+    function_data->parameters = parameters;
     function_data->is_vararg = is_vararg;
     return function_data;
 }
@@ -123,17 +124,33 @@ void codegen_data_array_destroy(CodegenData_Array* array) {
     free(array);
 }
 
-CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type) {
+CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type, size_t pointer_degree) {
     CodegenData_Pointer* pointer_data = malloc(sizeof(CodegenData_Pointer));
     pointer_data->pointer_name = pointer_name;
     pointer_data->pointer = pointer;
     pointer_data->pointer_type = pointer_type;
     pointer_data->pointer_base_type = pointer_base_type;
+    pointer_data->pointer_degree = pointer_degree;
     return pointer_data;
 }
 
 void codegen_data_pointer_destroy(CodegenData_Pointer* pointer) {
     free(pointer);
+}
+
+void codegen_data_reset_scope(CodegenData* data) {
+    for (size_t i = 0; i < data->variable_count; i++) {
+        codegen_data_variable_destroy(data->variables[i]);
+    }
+    for (size_t i = 0; i < data->array_count; i++) {
+        codegen_data_array_destroy(data->arrays[i]);
+    }
+    for (size_t i = 0; i < data->pointer_count; i++) {
+        codegen_data_pointer_destroy(data->pointers[i]);
+    }
+    data->variable_count = 0;
+    data->array_count = 0;
+    data->pointer_count = 0;
 }
 
 CodegenData_Function* codegen_data_get_function(CodegenData* data, const char* function_name) {
@@ -178,6 +195,6 @@ void codegen_data_set_while_merge_block(CodegenData* data, LLVMBasicBlockRef whi
 void codegen_data_set_while_cond_block(CodegenData* data, LLVMBasicBlockRef while_cond_block) {
     data->while_cond_block = while_cond_block;
 }
-void codegen_data_set_current_function(CodegenData* data, LLVMValueRef current_function) {
+void codegen_data_set_current_function(CodegenData* data, CodegenData_Function* current_function) {
     data->current_function = current_function;
 }
