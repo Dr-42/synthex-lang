@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     ast_data_print(ast->data);
     // ast_print_declarations();
 
-    ast_to_llvm(ast, lexer);
+    ast_to_llvm(ast, lexer->filename);
 
     ast_destroy(ast);
     lexer_destroy(lexer);

@@ -82,50 +82,54 @@ void codegen_data_add_pointer(CodegenData* data, CodegenData_Pointer* pointer) {
     data->pointer_count++;
 }
 
-CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, size_t parameter_count, bool is_vararg) {
-    CodegenData_Function* function = malloc(sizeof(CodegenData_Function));
-    function->function_name = function_name;
-    function->return_type = return_type;
-    function->parameter_types = parameter_types;
-    function->parameter_count = parameter_count;
-    function->is_vararg = is_vararg;
-    return function;
+CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMValueRef function, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, size_t parameter_count, bool is_vararg) {
+    CodegenData_Function* function_data = malloc(sizeof(CodegenData_Function));
+    function_data->function_name = function_name;
+    function_data->function = function;
+    function_data->return_type = return_type;
+    function_data->parameter_types = parameter_types;
+    function_data->parameter_count = parameter_count;
+    function_data->is_vararg = is_vararg;
+    return function_data;
 }
 
 void codegen_data_function_destroy(CodegenData_Function* function) {
     free(function);
 }
 
-CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMTypeRef variable_type) {
-    CodegenData_Variable* variable = malloc(sizeof(CodegenData_Variable));
-    variable->variable_name = variable_name;
-    variable->variable_type = variable_type;
-    return variable;
+CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMValueRef variable, LLVMTypeRef variable_type) {
+    CodegenData_Variable* variable_data = malloc(sizeof(CodegenData_Variable));
+    variable_data->variable_name = variable_name;
+    variable_data->variable = variable;
+    variable_data->variable_type = variable_type;
+    return variable_data;
 }
 
 void codegen_data_variable_destroy(CodegenData_Variable* variable) {
     free(variable);
 }
 
-CodegenData_Array* codegen_data_create_array(const char* array_name, LLVMTypeRef array_type, LLVMTypeRef array_element_type, size_t array_dim) {
-    CodegenData_Array* array = malloc(sizeof(CodegenData_Array));
-    array->array_name = array_name;
-    array->array_type = array_type;
-    array->array_element_type = array_element_type;
-    array->array_dim = array_dim;
-    return array;
+CodegenData_Array* codegen_data_create_array(const char* array_name, LLVMValueRef array, LLVMTypeRef array_type, LLVMTypeRef array_element_type, size_t array_dim) {
+    CodegenData_Array* array_data = malloc(sizeof(CodegenData_Array));
+    array_data->array_name = array_name;
+    array_data->array = array;
+    array_data->array_type = array_type;
+    array_data->array_element_type = array_element_type;
+    array_data->array_dim = array_dim;
+    return array_data;
 }
 
 void codegen_data_array_destroy(CodegenData_Array* array) {
     free(array);
 }
 
-CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type) {
-    CodegenData_Pointer* pointer = malloc(sizeof(CodegenData_Pointer));
-    pointer->pointer_name = pointer_name;
-    pointer->pointer_type = pointer_type;
-    pointer->pointer_base_type = pointer_base_type;
-    return pointer;
+CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type) {
+    CodegenData_Pointer* pointer_data = malloc(sizeof(CodegenData_Pointer));
+    pointer_data->pointer_name = pointer_name;
+    pointer_data->pointer = pointer;
+    pointer_data->pointer_type = pointer_type;
+    pointer_data->pointer_base_type = pointer_base_type;
+    return pointer_data;
 }
 
 void codegen_data_pointer_destroy(CodegenData_Pointer* pointer) {

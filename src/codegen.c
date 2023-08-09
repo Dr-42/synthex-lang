@@ -54,15 +54,15 @@ void convert_all_types(LLVMContextRef ctx) {
     llvm_types[DATA_TYPE_PTR] = NULL;
 }
 
-void ast_to_llvm(AST* ast, Lexer* lexer) {
+void ast_to_llvm(AST* ast, const char* filename) {
     LLVMContextRef ctx = LLVMContextCreate();
     LLVMContextSetOpaquePointers(ctx, false);
-    LLVMModuleRef module = LLVMModuleCreateWithNameInContext(lexer->filename, ctx);
+    LLVMModuleRef module = LLVMModuleCreateWithNameInContext(filename, ctx);
     LLVMBuilderRef builder = LLVMCreateBuilderInContext(ctx);
 
     convert_all_types(ctx);
 
-    visit_node(ast->root, lexer, module, builder);
+    visit_node(ast->root, module, builder);
 
     char* error = NULL;
     LLVMDumpModule(module);
@@ -77,7 +77,7 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
     LLVMCreateExecutionEngineForModule(&engine, module, &error);
 
     // Emit .ll file
-    char* ll_filename = strcat(lexer->filename, ".ll");
+    char* ll_filename = strcat(filename, ".ll");
     // delete the file if exists
     remove(ll_filename);
     LLVMPrintModuleToFile(module, ll_filename, &error);
@@ -98,34 +98,34 @@ void ast_to_llvm(AST* ast, Lexer* lexer) {
     LLVMContextDispose(ctx);
 }
 
-LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef lhs = NULL;
     switch (node->type) {
         case NODE_PROGRAM:
-            visit_node_program(node, lexer, module, builder);
+            visit_node_program(node, module, builder);
             break;
         case NODE_VARIABLE_DECLARATION:
-            visit_node_variable_declaration(node, lexer, module, builder);
+            visit_node_variable_declaration(node, module, builder);
             break;
         case NODE_FUNCTION_DECLARATION:
-            visit_node_function_declaration(node, lexer, module, builder);
+            visit_node_function_declaration(node, module, builder);
             break;
         case NODE_POINTER_DECLARATION:
-            visit_node_pointer_declaration(node, lexer, module, builder);
+            visit_node_pointer_declaration(node, module, builder);
             break;
         case NODE_POINTER_DEREF:
-            visit_node_pointer_deref(node, lexer, module, builder);
+            visit_node_pointer_deref(node, module, builder);
         case NODE_FUNCTION_ARGUMENT:
-            visit_node_function_argument(node, lexer, module, builder);
+            visit_node_function_argument(node, module, builder);
             break;
         case NODE_ASSIGNMENT:
-            visit_node_assignment(node, lexer, module, builder);
+            visit_node_assignment(node, module, builder);
             break;
         case NODE_IDENTIFIER:
-            return visit_node_identifier(node, lexer, module, builder, true);
+            return visit_node_identifier(node, module, builder, true);
             break;
         case NODE_TYPE:
-            visit_node_type(node, lexer, module, builder);
+            visit_node_type(node, module, builder);
             break;
         case NODE_BLOCK_STATEMENT:
             break;
@@ -134,43 +134,43 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
         case NODE_OPERATOR:
             break;
         case NODE_EXPRESSION:
-            return visit_node_expression(node, lexer, module, builder);
+            return visit_node_expression(node, module, builder);
             break;
         case NODE_ARRAY_DECLARATION:
-            visit_node_array_declaration(node, lexer, module, builder);
+            visit_node_array_declaration(node, module, builder);
             break;
         case NODE_ARRAY_ASSIGNMENT:
-            visit_node_array_assignment(node, lexer, module, builder);
+            visit_node_array_assignment(node, module, builder);
             break;
         case NODE_ARRAY_ELEMENT:
-            return visit_node_array_element(node, lexer, module, builder);
+            return visit_node_array_element(node, module, builder);
             break;
         case NODE_IF_STATEMENT:
-            visit_node_if_statement(node, lexer, module, builder, current_function, functionReturns[functionCount - 1]);
+            visit_node_if_statement(node, module, builder, current_function, functionReturns[functionCount - 1]);
             break;
         case NODE_WHILE_STATEMENT:
-            visit_node_while_statement(node, lexer, module, builder, current_function, functionReturns[functionCount - 1]);
+            visit_node_while_statement(node, module, builder, current_function, functionReturns[functionCount - 1]);
             break;
         case NODE_NUMERIC_LITERAL:
-            return visit_node_numeric_literal(node, lexer, module, builder);
+            return visit_node_numeric_literal(node, module, builder);
             break;
         case NODE_FLOAT_LITERAL:
-            return visit_node_float_literal(node, lexer, module, builder);
+            return visit_node_float_literal(node, module, builder);
             break;
         case NODE_CALL_EXPRESSION:
-            return visit_node_call_expression(node, lexer, module, builder);
+            return visit_node_call_expression(node, module, builder);
             break;
         case NODE_STRING_LITERAL:
-            visit_node_string_literal(node, lexer, module, builder);
+            visit_node_string_literal(node, module, builder);
             break;
         case NODE_TRUE_LITERAL:
-            return visit_node_true_literal(node, lexer, module, builder);
+            return visit_node_true_literal(node, module, builder);
             break;
         case NODE_FALSE_LITERAL:
-            return visit_node_false_literal(node, lexer, module, builder);
+            return visit_node_false_literal(node, module, builder);
             break;
         case NODE_NULL_LITERAL:
-            return visit_node_null_literal(node, lexer, module, builder);
+            return visit_node_null_literal(node, module, builder);
             break;
         case NODE_BRK_STATEMENT:
             if (while_merge_block != NULL && while_cond_block != NULL) {
@@ -198,13 +198,13 @@ LLVMValueRef visit_node(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuil
     return NULL;
 }
 
-void visit_node_program(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_program(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     for (size_t i = 0; i < node->num_children; i++) {
-        visit_node(node->children[i], lexer, module, builder);
+        visit_node(node->children[i], module, builder);
     }
 }
 
-void visit_node_variable_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_variable_declaration(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMTypeRef type;
     char* var_name = NULL;
 
@@ -229,7 +229,7 @@ void visit_node_variable_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
     }
 }
 
-void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_function_declaration(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     char* func_name = NULL;
     LLVMTypeRef return_type = NULL;
     LLVMTypeRef* arg_types = NULL;
@@ -370,14 +370,14 @@ void visit_node_function_declaration(Node* node, Lexer* lexer, LLVMModuleRef mod
         for (size_t i = 0; i < node->num_children; i++) {
             Node* child = node->children[i];
             if (child->type == NODE_BLOCK_STATEMENT) {
-                visit_node_block_statement(child, lexer, module, builder, func, return_type);
+                visit_node_block_statement(child, module, builder, func, return_type);
             }
         }
         free(arg_names);
     }
 }
 
-void visit_node_pointer_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_pointer_declaration(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMTypeRef type;
     char* var_name = NULL;
     LLVMTypeRef base_data_type = NULL;
@@ -438,7 +438,7 @@ void visit_node_pointer_declaration(Node* node, Lexer* lexer, LLVMModuleRef modu
     }
 }
 
-void visit_node_pointer_deref(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_pointer_deref(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     const char* pointer_name = node->data;
     LLVMValueRef pointer = NULL;
     size_t idx = 0;
@@ -472,16 +472,16 @@ void visit_node_pointer_deref(Node* node, Lexer* lexer, LLVMModuleRef module, LL
         return;
     }
     Node* expression = node->children[0];
-    LLVMValueRef value = visit_node_expression(expression, lexer, module, builder);
+    LLVMValueRef value = visit_node_expression(expression, module, builder);
     LLVMBuildStore(builder, value, pointer);
     return;
 }
 
-void visit_node_function_argument(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_function_argument(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return;
 }
 
-LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type, const char* name, LLVMBasicBlockRef merge_block) {
+LLVMBasicBlockRef create_if_block(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type, const char* name, LLVMBasicBlockRef merge_block) {
     LLVMContextRef ctx = LLVMGetModuleContext(module);
     LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(ctx, func, name);
     LLVMBuilderRef block_builder = LLVMCreateBuilder();
@@ -489,12 +489,12 @@ LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module
 
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_RETURN_STATEMENT) {
-            LLVMValueRef return_value = visit_node_return_statement(node->children[i], lexer, module, block_builder, return_type);
+            LLVMValueRef return_value = visit_node_return_statement(node->children[i], module, block_builder, return_type);
             LLVMBuildRet(block_builder, return_value);
         } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
-            visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
+            visit_node_variable_declaration(node->children[i], module, block_builder);
         } else {
-            visit_node(node->children[i], lexer, module, block_builder);
+            visit_node(node->children[i], module, block_builder);
         }
     }
 
@@ -510,7 +510,7 @@ LLVMBasicBlockRef create_if_block(Node* node, Lexer* lexer, LLVMModuleRef module
     return block;
 }
 
-void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+void visit_node_if_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
     LLVMValueRef condition = NULL;
     LLVMBasicBlockRef if_block = NULL;
     LLVMBasicBlockRef else_block = NULL;
@@ -523,18 +523,18 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
 
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
-            condition = visit_node_expression(node->children[i], lexer, module, builder);
+            condition = visit_node_expression(node->children[i], module, builder);
         } else if (node->children[i]->type == NODE_BLOCK_STATEMENT) {
-            if_block = create_if_block(node->children[i], lexer, module, builder, func, return_type, "if", merge_block);
+            if_block = create_if_block(node->children[i], module, builder, func, return_type, "if", merge_block);
         } else if (node->children[i]->type == NODE_ELSE_STATEMENT) {
-            else_block = create_if_block(node->children[i]->children[0], lexer, module, builder, func, return_type, "else", merge_block);
+            else_block = create_if_block(node->children[i]->children[0], module, builder, func, return_type, "else", merge_block);
         } else if (node->children[i]->type == NODE_ELIF_STATEMENT) {
             Node* elif_node = node->children[i];
             for (size_t j = 0; j < elif_node->num_children; j++) {
                 if (elif_node->children[j]->type == NODE_EXPRESSION) {
-                    elif_conditions[elif_count] = visit_node_expression(elif_node->children[j], lexer, module, builder);
+                    elif_conditions[elif_count] = visit_node_expression(elif_node->children[j], module, builder);
                 } else if (elif_node->children[j]->type == NODE_BLOCK_STATEMENT) {
-                    elif_blocks[elif_count] = create_if_block(elif_node->children[j], lexer, module, builder, func, return_type, "elif", merge_block);
+                    elif_blocks[elif_count] = create_if_block(elif_node->children[j], module, builder, func, return_type, "elif", merge_block);
                 }
             }
             elif_count++;
@@ -599,7 +599,7 @@ void visit_node_if_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLV
     return;
 }
 
-void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+void visit_node_while_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
     LLVMValueRef condition = NULL;
     LLVMBasicBlockRef while_block = LLVMCreateBasicBlockInContext(LLVMGetModuleContext(module), "while");
     LLVMBasicBlockRef merge_block = LLVMCreateBasicBlockInContext(LLVMGetModuleContext(module), "whmerge");
@@ -616,13 +616,13 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     while_merge_block = merge_block;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
-            condition = visit_node_expression(node->children[i], lexer, module, builder);
+            condition = visit_node_expression(node->children[i], module, builder);
         } else if (node->children[i]->type == NODE_BLOCK_STATEMENT) {
             LLVMBuildCondBr(builder, condition, while_block, merge_block);
             LLVMAppendExistingBasicBlock(func, while_block);
             LLVMPositionBuilderAtEnd(builder, while_block);
             for (size_t j = 0; j < node->children[i]->num_children; j++) {
-                visit_node(node->children[i]->children[j], lexer, module, builder);
+                visit_node(node->children[i]->children[j], module, builder);
             }
             LLVMBuildBr(builder, while_cond_check_block);
         }
@@ -638,15 +638,15 @@ void visit_node_while_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     return;
 }
 
-void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_assignment(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef value = NULL;
     LLVMValueRef variable = NULL;
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
         if (child->type == NODE_IDENTIFIER) {
-            variable = visit_node_identifier(child, lexer, module, builder, false);
+            variable = visit_node_identifier(child, module, builder, false);
         } else if (child->type == NODE_EXPRESSION) {
-            value = visit_node_expression(child, lexer, module, builder);
+            value = visit_node_expression(child, module, builder);
         }
     }
 
@@ -659,7 +659,7 @@ void visit_node_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMB
     }
 }
 
-LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, bool deref) {
+LLVMValueRef visit_node_identifier(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, bool deref) {
     const char* identifier = node->data;
     // LLVMBasicBlockRef currentBlock = LLVMGetInsertBlock(builder);
     LLVMValueRef currentFunction = current_function;
@@ -710,11 +710,11 @@ LLVMValueRef visit_node_identifier(Node* node, Lexer* lexer, LLVMModuleRef modul
     return variable;
 }
 
-void visit_node_type(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_type(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return;
 }
 
-void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
+void visit_node_block_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef func, LLVMTypeRef return_type) {
     LLVMContextRef ctx = LLVMGetModuleContext(module);
     LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(ctx, func, "entry");
     LLVMBuilderRef block_builder = LLVMCreateBuilder();
@@ -722,11 +722,11 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     LLVMValueRef return_value = NULL;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_RETURN_STATEMENT) {
-            return_value = visit_node_return_statement(node->children[i], lexer, module, block_builder, return_type);
+            return_value = visit_node_return_statement(node->children[i], module, block_builder, return_type);
         } else if (node->children[i]->type == NODE_VARIABLE_DECLARATION) {
-            visit_node_variable_declaration(node->children[i], lexer, module, block_builder);
+            visit_node_variable_declaration(node->children[i], module, block_builder);
         } else {
-            visit_node(node->children[i], lexer, module, block_builder);
+            visit_node(node->children[i], module, block_builder);
         }
     }
     if (LLVMGetTypeKind(return_type) == LLVMVoidTypeKind) {
@@ -743,19 +743,19 @@ void visit_node_block_statement(Node* node, Lexer* lexer, LLVMModuleRef module, 
     LLVMDisposeBuilder(block_builder);
 }
 
-LLVMValueRef visit_node_return_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMTypeRef return_type) {
+LLVMValueRef visit_node_return_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMTypeRef return_type) {
     LLVMValueRef value = NULL;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
-            value = visit_node_expression(node->children[i], lexer, module, builder);
+            value = visit_node_expression(node->children[i], module, builder);
         } else if (node->children[i]->type == NODE_IDENTIFIER) {
-            value = visit_node_identifier(node->children[i], lexer, module, builder, true);
+            value = visit_node_identifier(node->children[i], module, builder, true);
         }
     }
     return value;
 }
 
-LLVMValueRef visit_node_unary_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1) {
+LLVMValueRef visit_node_unary_operator(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1) {
     const char* op = node->data;
 
     if (value1 == NULL) {
@@ -796,7 +796,7 @@ LLVMValueRef visit_node_unary_operator(Node* node, Lexer* lexer, LLVMModuleRef m
     return NULL;
 }
 
-LLVMValueRef visit_node_binary_operator(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2) {
+LLVMValueRef visit_node_binary_operator(Node* node, LLVMModuleRef module, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2) {
     const char* op = node->data;
 
     if (value1 == NULL || value2 == NULL) {
@@ -859,19 +859,19 @@ LLVMValueRef visit_node_binary_operator(Node* node, Lexer* lexer, LLVMModuleRef 
     return NULL;
 }
 
-LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_expression(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef lhs = NULL;
     for (size_t i = 0; i < node->num_children; i++) {
         Node* child = node->children[i];
         switch (child->type) {
             case NODE_EXPRESSION:
-                lhs = visit_node_expression(child, lexer, module, builder);
+                lhs = visit_node_expression(child, module, builder);
                 continue;
             case NODE_ARRAY_ELEMENT:
-                lhs = visit_node_array_element(child, lexer, module, builder);
+                lhs = visit_node_array_element(child, module, builder);
                 continue;
             case NODE_IDENTIFIER:
-                lhs = visit_node_identifier(child, lexer, module, builder, true);
+                lhs = visit_node_identifier(child, module, builder, true);
                 continue;
             case NODE_OPERATOR: {
                 if (node->num_children < 2) {
@@ -881,7 +881,7 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                 } else if (node->num_children == 2) {
                     Node* rhs;
                     rhs = node->children[i + 1];
-                    LLVMValueRef operand = visit_node(rhs, lexer, module, builder);
+                    LLVMValueRef operand = visit_node(rhs, module, builder);
                     // Weird hack to get the type of the operand
                     if (strcmp((char*)child->data, "&") == 0 || strcmp((char*)child->data, "*") == 0) {
                         if (rhs->type != NODE_IDENTIFIER) {
@@ -889,15 +889,15 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                             exit(1);
                             return NULL;
                         }
-                        operand = visit_node_identifier(rhs, lexer, module, builder, false);
+                        operand = visit_node_identifier(rhs, module, builder, false);
                     }
-                    lhs = visit_node_unary_operator(child, lexer, module, builder, operand);
+                    lhs = visit_node_unary_operator(child, module, builder, operand);
                     i++;
                 } else if (node->num_children == 3) {
                     Node* rhs;
                     rhs = node->children[i + 1];
-                    LLVMValueRef value2 = visit_node(rhs, lexer, module, builder);
-                    lhs = visit_node_binary_operator(child, lexer, module, builder, lhs, value2);
+                    LLVMValueRef value2 = visit_node(rhs, module, builder);
+                    lhs = visit_node_binary_operator(child, module, builder, lhs, value2);
                     i++;
                 } else {
                     fprintf(stderr, "Error: Operator '%s' could not be applied\n", (char*)node->data);
@@ -908,25 +908,25 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
                 continue;
             }
             case NODE_CALL_EXPRESSION:
-                lhs = visit_node_call_expression(child, lexer, module, builder);
+                lhs = visit_node_call_expression(child, module, builder);
                 continue;
             case NODE_NUMERIC_LITERAL:
-                lhs = visit_node_numeric_literal(child, lexer, module, builder);
+                lhs = visit_node_numeric_literal(child, module, builder);
                 continue;
             case NODE_FLOAT_LITERAL:
-                lhs = visit_node_float_literal(child, lexer, module, builder);
+                lhs = visit_node_float_literal(child, module, builder);
                 continue;
             case NODE_TRUE_LITERAL:
-                lhs = visit_node_true_literal(child, lexer, module, builder);
+                lhs = visit_node_true_literal(child, module, builder);
                 continue;
             case NODE_FALSE_LITERAL:
-                lhs = visit_node_false_literal(child, lexer, module, builder);
+                lhs = visit_node_false_literal(child, module, builder);
                 continue;
             case NODE_NULL_LITERAL:
-                lhs = visit_node_null_literal(child, lexer, module, builder);
+                lhs = visit_node_null_literal(child, module, builder);
                 continue;
             case NODE_STRING_LITERAL:
-                lhs = visit_node_string_literal(child, lexer, module, builder);
+                lhs = visit_node_string_literal(child, module, builder);
                 continue;
             default:
                 printf("Unknown expression node type: %s\n", node_type_to_string(node->type));
@@ -936,7 +936,7 @@ LLVMValueRef visit_node_expression(Node* node, Lexer* lexer, LLVMModuleRef modul
     return lhs;
 }
 
-void visit_node_array_declaration(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_array_declaration(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     const char* array_name = NULL;
     LLVMTypeRef array_types[100] = {0};
     LLVMTypeRef array_element_type = NULL;
@@ -1000,7 +1000,7 @@ void visit_node_array_declaration(Node* node, Lexer* lexer, LLVMModuleRef module
     }
 }
 
-void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_array_assignment(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     const char* array_name = NULL;
     LLVMValueRef array = NULL;
     LLVMValueRef value = NULL;
@@ -1012,7 +1012,7 @@ void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module,
             array_name = child->data;
             iden = child;
         } else if (child->type == NODE_EXPRESSION) {
-            value = visit_node_expression(child, lexer, module, builder);
+            value = visit_node_expression(child, module, builder);
         }
     }
 
@@ -1059,7 +1059,7 @@ void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module,
             Node* child = iden->children[i];
             if (child->type == NODE_EXPRESSION) {
                 indices[2 * ind] = zero_index;
-                indices[2 * ind + 1] = visit_node_expression(child, lexer, module, builder);
+                indices[2 * ind + 1] = visit_node_expression(child, module, builder);
                 ind++;
             }
         }
@@ -1078,7 +1078,7 @@ void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module,
         for (size_t i = 0; i < iden->num_children; i++) {
             Node* child = iden->children[i];
             if (child->type == NODE_EXPRESSION) {
-                indices[ind] = visit_node_expression(child, lexer, module, builder);
+                indices[ind] = visit_node_expression(child, module, builder);
                 printf("Indices[%zu]: %s\n", ind, LLVMPrintValueToString(indices[ind]));
                 ind++;
             }
@@ -1091,7 +1091,7 @@ void visit_node_array_assignment(Node* node, Lexer* lexer, LLVMModuleRef module,
     }
 }
 
-LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_array_element(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMValueRef array = NULL;
     LLVMValueRef value = NULL;
     const char* array_name = NULL;
@@ -1140,7 +1140,7 @@ LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef mo
             Node* child = node->children[i];
             if (child->type == NODE_EXPRESSION) {
                 indices[2 * ind] = zero_index;
-                indices[2 * ind + 1] = visit_node_expression(child, lexer, module, builder);
+                indices[2 * ind + 1] = visit_node_expression(child, module, builder);
                 ind++;
             }
         }
@@ -1160,7 +1160,7 @@ LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef mo
         for (size_t i = 0; i < node->num_children; i++) {
             Node* child = node->children[i];
             if (child->type == NODE_EXPRESSION) {
-                indices[ind] = visit_node_expression(child, lexer, module, builder);
+                indices[ind] = visit_node_expression(child, module, builder);
                 ind++;
             }
         }
@@ -1173,7 +1173,7 @@ LLVMValueRef visit_node_array_element(Node* node, Lexer* lexer, LLVMModuleRef mo
     }
 }
 
-LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_call_expression(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     const char* function_name = node->children[0]->data;
     LLVMValueRef function = LLVMGetNamedFunction(module, function_name);
     if (function == NULL) {
@@ -1223,7 +1223,7 @@ LLVMValueRef visit_node_call_expression(Node* node, Lexer* lexer, LLVMModuleRef 
     size_t arg_count = 0;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
-            args[arg_count] = visit_node_expression(node->children[i], lexer, module, builder);
+            args[arg_count] = visit_node_expression(node->children[i], module, builder);
             arg_count++;
         }
     }
@@ -1279,41 +1279,41 @@ char* unescape_string(const char* input) {
     return output;
 }
 
-LLVMValueRef visit_node_string_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_string_literal(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     const char* value = unescape_string(node->data);
     LLVMValueRef string = LLVMBuildGlobalStringPtr(builder, value, "strtmp");
     return string;
 }
 
-void visit_node_elif_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_elif_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return;
 }
 
-void visit_node_else_statement(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+void visit_node_else_statement(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return;
 }
 
-LLVMValueRef visit_node_numeric_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_numeric_literal(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     LLVMContextRef ctx = LLVMGetModuleContext(module);
     const char* value_str = node->data;
     float value = strtof(value_str, NULL);
     return LLVMConstInt(LLVMInt32TypeInContext(ctx), value, 0);
 }
 
-LLVMValueRef visit_node_float_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_float_literal(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     const char* value_str = node->data;
     float value = strtof(value_str, NULL);
     return LLVMConstReal(LLVMFloatType(), value);
 }
 
-LLVMValueRef visit_node_true_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_true_literal(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return LLVMConstInt(LLVMInt1Type(), 1, 0);
 }
 
-LLVMValueRef visit_node_false_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_false_literal(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return LLVMConstInt(LLVMInt1Type(), 0, 0);
 }
 
-LLVMValueRef visit_node_null_literal(Node* node, Lexer* lexer, LLVMModuleRef module, LLVMBuilderRef builder) {
+LLVMValueRef visit_node_null_literal(Node* node, LLVMModuleRef module, LLVMBuilderRef builder) {
     return LLVMConstPointerNull(LLVMPointerType(LLVMInt8Type(), 0));
 }

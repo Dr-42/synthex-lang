@@ -6,6 +6,7 @@
 
 typedef struct CodegenData_Function {
     const char* function_name;
+    LLVMValueRef function;
     LLVMTypeRef return_type;
     LLVMTypeRef* parameter_types;
     size_t parameter_count;
@@ -62,16 +63,16 @@ void codegen_data_add_variable(CodegenData* data, CodegenData_Variable* variable
 void codegen_data_add_array(CodegenData* data, CodegenData_Array* array);
 void codegen_data_add_pointer(CodegenData* data, CodegenData_Pointer* pointer);
 
-CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, size_t parameter_count, bool is_vararg);
+CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMValueRef function, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, size_t parameter_count, bool is_vararg);
 void codegen_data_function_destroy(CodegenData_Function* function);
 
-CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMTypeRef variable_type);
+CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMValueRef variable, LLVMTypeRef variable_type);
 void codegen_data_variable_destroy(CodegenData_Variable* variable);
 
-CodegenData_Array* codegen_data_create_array(const char* array_name, LLVMTypeRef array_type, LLVMTypeRef array_element_type, size_t array_dim);
+CodegenData_Array* codegen_data_create_array(const char* array_name, LLVMValueRef array, LLVMTypeRef array_type, LLVMTypeRef array_element_type, size_t array_dim);
 void codegen_data_array_destroy(CodegenData_Array* array);
 
-CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type);
+CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type);
 void codegen_data_pointer_destroy(CodegenData_Pointer* pointer);
 
 CodegenData_Function* codegen_data_get_function(CodegenData* data, const char* function_name);
