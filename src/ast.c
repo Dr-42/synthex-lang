@@ -650,6 +650,8 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
                 }
             }
 
+            (void)dim_depth;  // Will be used when we pass in entire array instead of single element
+
             token = lexer_peek_token(lexer, 0);
 
             if (token->type != TOKEN_OPERATOR && strcmp(token->value, "=") != 0) {
@@ -1053,8 +1055,9 @@ Node* ast_expression_descent(Node* expression) {
         // We need to find the lowest precedence operator
         // and split the expression into two expressions
         // at that operator
-        int lowest_precedence = 100;
-        int lowest_precedence_idx = -1;
+        size_t lowest_precedence = 100;
+        size_t lowest_precedence_idx = 0;
+        bool found_operator = false;
         for (size_t i = 0; i < expression->num_children; i++) {
             Node* child = expression->children[i];
             if (child->type == NODE_OPERATOR) {
@@ -1063,13 +1066,14 @@ Node* ast_expression_descent(Node* expression) {
                         if (j < lowest_precedence) {
                             lowest_precedence = j;
                             lowest_precedence_idx = i;
+                            found_operator = true;
                         }
                         break;
                     }
                 }
             }
         }
-        if (lowest_precedence_idx == -1) {
+        if (!found_operator) {
             node_error(expression, "Expected binary operator in expression of length > 3");
         }
         Node* left_expression = create_node(NODE_EXPRESSION, NULL, 0, 0);

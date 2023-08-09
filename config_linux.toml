@@ -6,6 +6,6 @@ name = "main"
 src = "./src/"
 include_dir = "./src/include/"
 type = "exe"
-cflags = "-g `llvm-config --cflags`"
+cflags = "-g -Wall -Wextra `llvm-config --cflags`"
 libs = "`llvm-config --ldflags --libs core --system-libs`"
 deps = [""]
