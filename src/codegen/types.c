@@ -142,7 +142,6 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
                     arg_types[arg_index] = llvm_types[arg_ty];
                     arg_names[arg_index] = child->data;
                     arg_index++;
-                    break;
                 }
             }
         }
