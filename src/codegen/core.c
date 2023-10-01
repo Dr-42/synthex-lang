@@ -28,7 +28,6 @@ void convert_all_types(LLVMContextRef ctx) {
 
 void ast_to_llvm(AST* ast, const char* filename) {
     LLVMContextRef ctx = LLVMContextCreate();
-    LLVMContextSetOpaquePointers(ctx, false);
     LLVMModuleRef module = LLVMModuleCreateWithNameInContext(filename, ctx);
     LLVMBuilderRef builder = LLVMCreateBuilderInContext(ctx);
 
