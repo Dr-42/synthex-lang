@@ -23,10 +23,8 @@ LLVMValueRef visit_node_unary_operator(Node* node, LLVMBuilderRef builder, LLVMV
         return value1;
     } else if (strcmp(op, "*") == 0) {
         // Dereference
-        // This is a hacky way to dereference a pointer
         LLVMValueRef deref1 = LLVMBuildLoad2(builder, LLVMGetElementType(value1_type), value1, "deref");
-        LLVMValueRef deref2 = LLVMBuildLoad2(builder, LLVMGetElementType(LLVMGetElementType(value1_type)), deref1, "deref");
-        return deref2;
+        return deref1;
     }
 
     if (LLVMGetTypeKind(value1_type) == LLVMIntegerTypeKind) {

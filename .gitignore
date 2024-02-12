@@ -1,4 +1,5 @@
 .bld_cpp
+.cache
 compile_commands.json
 .vscode
 *.syn
