@@ -1,12 +1,24 @@
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
+
+#define DR42_TRACE_IMPLEMENTATION
+#include "trace.h"
 
 #include "ast.h"
 #include "codegen.h"
 #include "lexer.h"
 #include "utils/ast_data.h"
 
+void sigsegv_handler(int signum) {
+    printf("Caught segfault %d\n", signum);
+    print_trace();
+    exit(1);
+}
+
+
 int main(int argc, char *argv[]) {
+    signal(SIGSEGV, sigsegv_handler);
     if (argc != 2) {
         printf("Usage: %s <filename>\n", argv[0]);
         return 1;

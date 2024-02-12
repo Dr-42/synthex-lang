@@ -1,3 +1,4 @@
+#include <llvm-c/Core.h>
 #include <string.h>
 
 #include "codegen.h"
@@ -18,13 +19,16 @@ LLVMValueRef visit_node_unary_operator(Node* node, LLVMBuilderRef builder, LLVMV
     }
 
     LLVMTypeRef value1_type = LLVMTypeOf(value1);
+    LLVMTypeRef value1_ptr_type = LLVMPointerType(value1_type, 0);
 
     if (strcmp(op, "&") == 0) {
         return value1;
     } else if (strcmp(op, "*") == 0) {
         // Dereference
-        LLVMValueRef deref1 = LLVMBuildLoad2(builder, LLVMGetElementType(value1_type), value1, "deref");
-        return deref1;
+        LLVMValueRef deref1 = LLVMBuildLoad2(builder, value1_ptr_type, value1, "valderef");
+        LLVMValueRef deref2 = LLVMBuildLoad2(builder, value1_ptr_type, deref1, "ptrderef");
+        printf("Dereferencing %s\n", LLVMPrintValueToString(deref1));
+        return deref2;
     }
 
     if (LLVMGetTypeKind(value1_type) == LLVMIntegerTypeKind) {
