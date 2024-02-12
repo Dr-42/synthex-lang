@@ -658,8 +658,7 @@ void visit_node_array_assignment(Node* node, LLVMBuilderRef builder) {
             }
         }
 
-        LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
-        LLVMSetIsInBounds(gep, true);
+        LLVMValueRef gep = LLVMBuildInBoundsGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
         LLVMBuildStore(builder, value, gep);
     } else {
         LLVMTypeRef array_type = pointer_data->pointer_type;
@@ -681,8 +680,7 @@ void visit_node_array_assignment(Node* node, LLVMBuilderRef builder) {
 
         // Offset the pointer
         LLVMValueRef array_pointer = LLVMBuildLoad2(builder, pointer_type, array, "arrptr");
-        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array_pointer, indices, num_dimensions, "geptmp");
-        LLVMSetIsInBounds(gep, true);
+        LLVMValueRef gep = LLVMBuildInBoundsGEP2(builder, array_element_type, array_pointer, indices, num_dimensions, "geptmp");
         LLVMBuildStore(builder, value, gep);
     }
 }
@@ -734,8 +732,7 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMBuilderRef builder) {
             }
         }
 
-        LLVMValueRef gep = LLVMBuildGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
-        LLVMSetIsInBounds(gep, true);
+        LLVMValueRef gep = LLVMBuildInBoundsGEP2(builder, array_type, array, indices, 2 * num_dimensions, "geptmp");
         value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
         return value;
     } else {
@@ -757,8 +754,7 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMBuilderRef builder) {
 
         // Offset the pointer
         LLVMValueRef array_pointer = LLVMBuildLoad2(builder, pointer_type, array, "arrptr");
-        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array_pointer, indices, num_dimensions, "geptmp");
-        LLVMSetIsInBounds(gep, true);
+        LLVMValueRef gep = LLVMBuildInBoundsGEP2(builder, array_element_type, array_pointer, indices, num_dimensions, "geptmp");
         value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
         return value;
     }
