@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <llvm-c/Core.h>
 #include <string.h>
 
 #include "codegen.h"
@@ -661,8 +662,9 @@ void visit_node_array_assignment(Node* node, LLVMBuilderRef builder) {
         LLVMSetIsInBounds(gep, true);
         LLVMBuildStore(builder, value, gep);
     } else {
-        // LLVMTypeRef array_type = pointer_data->pointer_type;
+        LLVMTypeRef array_type = pointer_data->pointer_type;
         LLVMTypeRef array_element_type = pointer_data->pointer_base_type;
+        LLVMTypeRef pointer_type = LLVMPointerType(array_type, 0);
 
         size_t num_dimensions = iden->num_children;
         size_t ind = 0;
@@ -678,7 +680,8 @@ void visit_node_array_assignment(Node* node, LLVMBuilderRef builder) {
         }
 
         // Offset the pointer
-        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array, indices, num_dimensions, "geptmp");
+        LLVMValueRef array_pointer = LLVMBuildLoad2(builder, pointer_type, array, "arrptr");
+        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array_pointer, indices, num_dimensions, "geptmp");
         LLVMSetIsInBounds(gep, true);
         LLVMBuildStore(builder, value, gep);
     }
@@ -736,7 +739,9 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMBuilderRef builder) {
         value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
         return value;
     } else {
+        LLVMTypeRef array_type = pointer_data->pointer_type;
         LLVMTypeRef array_element_type = pointer_data->pointer_base_type;
+        LLVMTypeRef pointer_type = LLVMPointerType(array_type, 0);
 
         size_t num_dimensions = node->num_children;
         size_t ind = 0;
@@ -751,7 +756,8 @@ LLVMValueRef visit_node_array_element(Node* node, LLVMBuilderRef builder) {
         }
 
         // Offset the pointer
-        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array, indices, num_dimensions, "geptmp");
+        LLVMValueRef array_pointer = LLVMBuildLoad2(builder, pointer_type, array, "arrptr");
+        LLVMValueRef gep = LLVMBuildGEP2(builder, array_element_type, array_pointer, indices, num_dimensions, "geptmp");
         LLVMSetIsInBounds(gep, true);
         value = LLVMBuildLoad2(builder, array_element_type, gep, "loadtmp");
         return value;
