@@ -1,0 +1,16 @@
+fnc print(a : str, ...) : void;
+
+fnc sum(a : i32, b : i32, c : ptr<i32>) : void {
+    *c = a + b;
+}
+
+fnc main() : i32 {
+    a : i32 = 2;
+    b : ptr<i32> = &a;
+    print("a = %d, is at %p and *b = %d\n", a, b, *b);
+    c : i32 = 20;
+    d : i32 = 0;
+    sum(a, c, &d);
+    print("d = %d\n", d);
+    ret 0;
+}

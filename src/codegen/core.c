@@ -26,7 +26,7 @@ void convert_all_types(LLVMContextRef ctx) {
     llvm_types[DATA_TYPE_PTR] = NULL;
 }
 
-void ast_to_llvm(AST* ast, const char* filename) {
+void ast_to_llvm(AST* ast, const char* filename, const char* output, bool dump) {
     LLVMContextRef ctx = LLVMContextCreate();
     LLVMModuleRef module = LLVMModuleCreateWithNameInContext(filename, ctx);
     LLVMBuilderRef builder = LLVMCreateBuilderInContext(ctx);
@@ -38,7 +38,7 @@ void ast_to_llvm(AST* ast, const char* filename) {
     visit_node(ast->root, builder);
 
     char* error = NULL;
-    LLVMDumpModule(module);
+    if (dump) LLVMDumpModule(module);
     LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
     LLVMDisposeMessage(error);
     // set target triple for module
@@ -49,12 +49,7 @@ void ast_to_llvm(AST* ast, const char* filename) {
     error = NULL;
     LLVMCreateExecutionEngineForModule(&engine, module, &error);
 
-    // Emit .ll file
-    char ll_filename[100];
-    strcpy(ll_filename, filename);
-    strcat(ll_filename, ".ll");
-    // delete the file if exists
-    LLVMPrintModuleToFile(module, ll_filename, &error);
+    LLVMPrintModuleToFile(module, output, &error);
     if (error) {
         printf("Error: %s\n", error);
         LLVMDisposeMessage(error);

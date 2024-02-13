@@ -2,12 +2,9 @@
 .cache
 compile_commands.json
 .vscode
-*.syn
-*.synh
 run.ps1
 run.sh
 main.syn.ll
-t.c
-t.exe
 t
-t.o
+test.ll
+main.syn

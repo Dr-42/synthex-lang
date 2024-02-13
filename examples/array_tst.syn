@@ -1,0 +1,32 @@
+fnc print(a : str, ...) : void;
+fnc get_num() : i32;
+
+fnc main() : i32 {
+    a : [i32; 8];
+    b : [i32; 8];
+
+    iter : i32 = 0;
+    print("Enter iterations: ");
+    rows : i32 = get_num();
+    while (iter < rows) {
+        a[0] = 1 + iter;
+        a[1] = 2 + iter;
+        a[2] = 3 + iter;
+        a[3] = 4 + iter;
+        a[4] = 5 + iter;
+        a[5] = 6 + iter;
+        a[6] = 7 + iter;
+        a[7] = 8 + iter;
+
+        print("a: %d %d %d %d %d %d %d %d\n", a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
+
+        i : i32 = 0;
+        while (i < 8) {
+            b[i] = a[i];
+            i = i + 1;
+        }
+        print("b: %d %d %d %d %d %d %d %d\n", b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]);
+        iter = iter + 1;
+    }
+    ret 0;
+}

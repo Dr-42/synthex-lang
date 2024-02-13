@@ -1,0 +1,7 @@
+fnc print(a : str, ...) : void;
+
+fnc main() : i32 {
+    a : i32 = -9 / 3 + -4 * 5 / 2 + 2 * 6;
+    print("a = %d\n", a);
+    ret 0;
+}

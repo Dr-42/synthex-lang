@@ -4,7 +4,7 @@
 #include "ast.h"
 
 // In core.c
-void ast_to_llvm(AST* ast, const char* filename);
+void ast_to_llvm(AST* ast, const char* filename, const char* output, bool dump);
 void convert_all_types(LLVMContextRef ctx);
 
 LLVMValueRef visit_node(Node* node, LLVMBuilderRef builder);

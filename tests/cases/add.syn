@@ -1,0 +1,10 @@
+fnc print(a : str, ...) : void;
+
+fnc main() : i32 {
+	a : i32 = 4;
+	b : i32 = 8;
+	c : i32;
+	c = a + b;
+	print("a : %d, b : %d, c : %d\n", a, b, c);
+	ret 0;
+}

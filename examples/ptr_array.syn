@@ -1,0 +1,12 @@
+fnc print(a : str, ...) : void;
+fnc alloc_dyn_arr(size : i32) : ptr<i32>;
+
+fnc main() : i32 {
+    a : ptr<i32> = alloc_dyn_arr(10);
+    a[0] = 1;
+    a[1] = 2;
+    print("a = %p\n", a);
+    print("a[0] = %d , a[1] = %d\n", a[0], a[1]);
+    print("a = %p\n", a);
+    ret 0;
+}

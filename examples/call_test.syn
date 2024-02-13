@@ -1,0 +1,16 @@
+fnc print(a : str, ...) : void;
+fnc get_num() : i32;
+
+fnc sum(a : i32, b : i32) : i32 {
+    ret a + b;
+}
+
+fnc main() : i32 {
+    print("Enter first number: ");
+    a : i32 = get_num();
+    print("Enter second number: ");
+    b : i32 = get_num();
+    c : i32 = sum(a, b);
+    print("Sum: %d\n", c);
+    ret 0;
+}
