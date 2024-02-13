@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stddef.h>
+
 typedef enum {
     TOKEN_EOF,
     TOKEN_IDENTIFIER,
@@ -14,6 +16,7 @@ typedef enum {
     TOKEN_COMMENT,
     TOKEN_DOC_COMMENT,
     TOKEN_TYPEANNOTATION,
+    TOKEN_TYPEDECLARATION,
     TOKEN_TOTAL,
 } TokenType;
 

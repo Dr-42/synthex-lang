@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "token.h"
 
 #include <ctype.h>
 #include <stdint.h>
@@ -99,6 +100,10 @@ const char *comments[] = {
     "///",
 };
 
+char user_defined_types[256][256] = {0};
+size_t user_defined_types_count = 0;
+bool in_user_defined_type = false;
+
 const size_t KEYWORD_COUNT = array_length(keywords);
 const size_t TYPE_COUNT = array_length(types);
 const size_t OPERATOR_COUNT = array_length(operators);
@@ -160,6 +165,7 @@ Token *lexer_create_token(Lexer *lexer, TokenType type, size_t start, size_t end
     token->type = type;
     token->value = calloc(end - start + 1, sizeof(char));
     memcpy(token->value, lexer->contents + start, end - start);
+    token->value[end - start] = '\0';
     token->line = lexer->line;
     token->column = lexer->column;
     token->filename = lexer->filename;
@@ -203,6 +209,8 @@ char *token_type_to_string(TokenType type) {
             return "TOKEN_DOC_COMMENT";
         case TOKEN_TYPEANNOTATION:
             return "TOKEN_TYPEANNOTATION";
+        case TOKEN_TYPEDECLARATION:
+            return "TOKEN_TYPEDECLARATION";
         default:
             return "Unknown token type";
     }
@@ -228,6 +236,13 @@ Token *lexer_next_token(Lexer *lexer) {
             if (strncmp(&lexer->contents[lexer->index], keywords[i], strlen(keywords[i])) == 0) {
                 lexer->index += strlen(keywords[i]);
                 lexer->column += strlen(keywords[i]);
+                if (strcmp(keywords[i], "struct") == 0) {
+                    in_user_defined_type = true;
+                } else if (strcmp(keywords[i], "enum") == 0) {
+                    in_user_defined_type = true;
+                } else if (strcmp(keywords[i], "union") == 0) {
+                    in_user_defined_type = true;
+                }
                 return lexer_create_token(lexer, TOKEN_KEYWORD, lexer->index - strlen(keywords[i]), lexer->index);
             }
         }
@@ -247,7 +262,25 @@ Token *lexer_next_token(Lexer *lexer) {
                 lexer->index++;
                 lexer->column++;
             }
-            return lexer_create_token(lexer, TOKEN_IDENTIFIER, start, lexer->index);
+            if (in_user_defined_type) {
+                snprintf(user_defined_types[user_defined_types_count], lexer->index - start + 1, "%s", &lexer->contents[start]);
+                user_defined_types_count++;
+
+                in_user_defined_type = false;
+                Token* tok = lexer_create_token(lexer, TOKEN_TYPEDECLARATION, start, lexer->index);
+                printf("User defined type: %s\n", tok->value);
+                return tok;
+            }
+
+            // Match user defined types
+            Token* tok = lexer_create_token(lexer, TOKEN_IDENTIFIER, start, lexer->index);
+            for (size_t i = 0; i < user_defined_types_count; i++) {
+                if (strcmp(tok->value, user_defined_types[i]) == 0) {
+                    tok->type = TOKEN_TYPEANNOTATION;
+                    break;
+                }
+            }
+            return tok;
         }
 
         if (isdigit(c)) {
