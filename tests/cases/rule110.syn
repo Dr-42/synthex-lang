@@ -1,0 +1,70 @@
+fnc print(a : str, ...) : void;
+fnc get_num() : i32;
+
+fnc main() : i32 {
+    rows : i32 = 20;
+
+    arr : [i32; 51];
+    arr_n : [i32; 51];
+
+    // Zero out the arrays
+    ctr : i32 = 0;
+    while (ctr < 51){
+        arr[ctr] = 0;
+        arr_n[ctr] = 0;
+        ctr = ctr + 1;
+    }
+
+    // Set the initial conditions
+    arr[49] = 1;
+
+    idx : i32 = 0;
+    while (idx < rows) {
+        sc : i32 = 1;
+        // Calculate the next row
+        while (sc < 50){
+            if (arr[sc - 1] == 1 && arr[sc] == 1 && arr[sc + 1] == 1) {
+                arr_n[sc] = 0;
+            } elif (arr[sc - 1] == 1 && arr[sc] == 1 && arr[sc + 1] == 0){
+                arr_n[sc] = 1;
+            } elif (arr[sc - 1] == 1 && arr[sc] == 0 && arr[sc + 1] == 1){
+                arr_n[sc] = 1;
+            } elif (arr[sc - 1] == 1 && arr[sc] == 0 && arr[sc + 1] == 0){
+                arr_n[sc] = 0;
+            } elif (arr[sc - 1] == 0 && arr[sc] == 1 && arr[sc + 1] == 1){
+                arr_n[sc] = 1;
+            } elif (arr[sc - 1] == 0 && arr[sc] == 1 && arr[sc + 1] == 0){
+                arr_n[sc] = 1;
+            } elif (arr[sc - 1] == 0 && arr[sc] == 0 && arr[sc + 1] == 1){
+                arr_n[sc] = 1;
+            } elif (arr[sc - 1] == 0 && arr[sc] == 0 && arr[sc + 1] == 0){
+                arr_n[sc] = 0;
+            }
+
+            sc = sc + 1;
+        }
+        // Print the row
+        i : i32 = 0;
+        while (i < 50){
+            ch : str;
+            if (arr[i] == 1){
+                ch = "X";
+            } elif (arr[i] == 0){
+                ch = " ";
+            } else {
+                ch = "*";
+            }
+            print(ch);
+            i = i + 1;
+        }
+        print("%s", "\n");
+        ir : i32 = 0;
+        while (ir < 50){
+            tm : i32 = arr_n[ir];
+            arr[ir] = tm;
+            ir = ir + 1;
+        }
+        idx = idx + 1;
+    }
+    ret 0;
+}
