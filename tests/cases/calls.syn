@@ -1,0 +1,13 @@
+fnc print(a : str, ...) : void;
+
+fnc sum(a : i32, b : i32) : i32 {
+	ret a + b;
+}
+
+fnc main() : i32 {
+	a : i32 = 16;
+	b : i32 = 976;
+	c : i32 = sum(a, b);
+	print("%d + %d = %d\n", a, b, c);
+	ret 0;
+}

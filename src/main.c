@@ -27,7 +27,6 @@ int main(int argc, char *argv[]) {
     }
 
     if (strcmp(argv[1], "test") == 0) {
-        printf("Running tests\n");
         test_all();
         return 0;
     }

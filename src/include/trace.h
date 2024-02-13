@@ -107,7 +107,6 @@ int _fprint_trace(FILE* fp, size_t offset){
 #include <execinfo.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#define __USE_GNU
 #include <dlfcn.h>
 
 #define MAX_STACK_FRAMES 64

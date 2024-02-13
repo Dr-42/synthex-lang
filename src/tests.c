@@ -8,9 +8,15 @@
 #include "codegen.h"
 #include "lexer.h"
 
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
 int test_file(char *filename, char* expected_filename);
 
 void test_all() {
+    printf("%sRunning all tests%s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET);
     // Get all files in the tests directory
     DIR *dir;
     struct dirent *ent;
@@ -26,24 +32,28 @@ void test_all() {
                 if (dot != NULL) {
                     strcpy(dot, ".txt");
                 }
-                printf("Running test: %s\n", filename);
+                printf("%sRunning test%s: %s\n", ANSI_COLOR_YELLOW, ANSI_COLOR_RESET,  filename);
                 if(test_file(filename, expected_filename) < 0) {
-                    fprintf(stderr, "Test failed for file: %s\n", filename);
+                    fprintf(stderr, "%sERROR:%s Test failed for file: %s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET, filename);
                 } else {
-                    printf("Test passed for file: %s\n", filename);
+                    printf("%sTest passed for file%s: %s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET, filename);
                 }
             }
         }
         closedir(dir);
     } else {
-        fprintf(stderr, "Failed to open tests directory");
+        fprintf(stderr, "%sERROR:%s Failed to open tests directory", ANSI_COLOR_RED, ANSI_COLOR_RESET);
     }
+
+    // Cleanup
+    system("rm test.ll");
+    system("rm t");
 }
 
 int test_file(char *filename, char* expected_filename) {
     Lexer *lexer = lexer_create(filename);
     if (lexer == NULL) {
-        printf("Failed to create lexer\n");
+        fprintf(stderr, "%sERROR:%s Failed to create lexer\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
         return -1;
     }
     AST *ast = ast_create();
@@ -57,7 +67,7 @@ int test_file(char *filename, char* expected_filename) {
     // Create a pipe to read the output of the program
     FILE *pipe = popen("./t", "r");
     if (!pipe) {
-        fprintf(stderr, "Failed to open pipe\n");
+        fprintf(stderr, "%sERROR:%s Failed to open pipe\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
         return -1;
     }
     char buffer[4096];
@@ -69,14 +79,14 @@ int test_file(char *filename, char* expected_filename) {
     // Get the exit code of the program
     int exit_code = WEXITSTATUS(system("./t >> /dev/null 2>&1"));
     if (exit_code != 0) {
-        fprintf(stderr, "Program exited with non-zero exit code: %d\n", exit_code);
+        fprintf(stderr, "%sERROR:%sProgram exited with non-zero exit code: %d\n", ANSI_COLOR_RED, ANSI_COLOR_RESET, exit_code);
         return -1;
     }
 
     // Check if the output is correct
     FILE* expected = fopen(expected_filename, "r");
     if (expected == NULL) {
-        fprintf(stderr, "Failed to open expected file: %s\n", expected_filename);
+        fprintf(stderr, "%sERROR:%s Failed to open expected file: %s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET, expected_filename);
         return -1;
     }
     char expected_buffer[4096];
@@ -85,9 +95,9 @@ int test_file(char *filename, char* expected_filename) {
     }
 
     if (strcmp(buffer, expected_buffer) != 0) {
-        fprintf(stderr, "Output does not match expected output\n");
-        fprintf(stderr, "Expected: %s\n", expected_buffer);
-        fprintf(stderr, "Got: %s\n", buffer);
+        fprintf(stderr, "%sERROR:%s Output does not match expected output\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
+        fprintf(stderr, "\tExpected: %s\n", expected_buffer);
+        fprintf(stderr, "\tGot: %s\n", buffer);
         return -1;
     }
     return 0;
