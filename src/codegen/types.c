@@ -673,7 +673,6 @@ void visit_node_array_assignment(Node* node, LLVMBuilderRef builder) {
             Node* child = iden->children[i];
             if (child->type == NODE_EXPRESSION) {
                 indices[ind] = visit_node_expression(child, builder);
-                printf("Indices[%zu]: %s\n", ind, LLVMPrintValueToString(indices[ind]));
                 ind++;
             }
         }
