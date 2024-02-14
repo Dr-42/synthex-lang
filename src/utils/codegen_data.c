@@ -93,11 +93,12 @@ void codegen_data_function_destroy(CodegenData_Function* function) {
     free(function);
 }
 
-CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMValueRef variable, LLVMTypeRef variable_type) {
+CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMValueRef variable, const char* variable_type_name, LLVMTypeRef variable_type) {
     CodegenData_Variable* variable_data = malloc(sizeof(CodegenData_Variable));
     variable_data->variable_name = variable_name;
     variable_data->variable = variable;
     variable_data->variable_type = variable_type;
+    variable_data->variable_type_name = variable_type_name;
     return variable_data;
 }
 
@@ -193,6 +194,15 @@ CodegenData_Pointer* codegen_data_get_pointer(CodegenData* data, const char* poi
     for (size_t i = 0; i < data->pointer_count; i++) {
         if (strcmp(data->pointers[i]->pointer_name, pointer_name) == 0) {
             return data->pointers[i];
+        }
+    }
+    return NULL;
+}
+
+CodegenData_Struct* codegen_data_get_struct(CodegenData* data, const char* struct_name) {
+    for (size_t i = 0; i < data->struct_count; i++) {
+        if (strcmp(data->structs[i]->struct_name, struct_name) == 0) {
+            return data->structs[i];
         }
     }
     return NULL;

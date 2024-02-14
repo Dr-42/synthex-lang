@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "codegen.h"
+#include "node.h"
 #include "utils/codegen_data.h"
 
 extern const char* types[];
@@ -116,6 +117,9 @@ LLVMValueRef visit_node(Node* node, LLVMBuilderRef builder) {
             break;
         case NODE_STRUCT_DECLARATION:
             visit_node_struct_declaration(node);
+            break;
+        case NODE_STRUCT_MEMBER_ASSIGNMENT:
+            visit_node_struct_member_assignment(node, builder);
             break;
         case NODE_IF_STATEMENT:
             visit_node_if_statement(node, builder);

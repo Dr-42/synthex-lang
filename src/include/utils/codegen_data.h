@@ -17,6 +17,7 @@ typedef struct CodegenData_Function {
 typedef struct CodegenData_Variable {
     const char* variable_name;
     LLVMTypeRef variable_type;
+    const char* variable_type_name;
     LLVMValueRef variable;
 } CodegenData_Variable;
 
@@ -80,7 +81,7 @@ void codegen_data_add_struct(CodegenData* data, CodegenData_Struct* strct);
 CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMValueRef function, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, LLVMValueRef* parameters, size_t parameter_count, bool is_vararg);
 void codegen_data_function_destroy(CodegenData_Function* function);
 
-CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMValueRef variable, LLVMTypeRef variable_type);
+CodegenData_Variable* codegen_data_create_variable(const char* variable_name, LLVMValueRef variable, const char* variable_type_name, LLVMTypeRef variable_type);
 void codegen_data_variable_destroy(CodegenData_Variable* variable);
 
 CodegenData_Array* codegen_data_create_array(const char* array_name, LLVMValueRef array, LLVMTypeRef array_type, LLVMTypeRef array_element_type, size_t array_dim);
@@ -98,6 +99,7 @@ CodegenData_Function* codegen_data_get_function(CodegenData* data, const char* f
 CodegenData_Variable* codegen_data_get_variable(CodegenData* data, const char* variable_name);
 CodegenData_Array* codegen_data_get_array(CodegenData* data, const char* array_name);
 CodegenData_Pointer* codegen_data_get_pointer(CodegenData* data, const char* pointer_name);
+CodegenData_Struct* codegen_data_get_struct(CodegenData* data, const char* struct_name);
 
 void codegen_data_set_while_merge_block(CodegenData* data, LLVMBasicBlockRef while_merge_block);
 void codegen_data_set_while_cond_block(CodegenData* data, LLVMBasicBlockRef while_cond_block);
