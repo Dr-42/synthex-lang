@@ -1,6 +1,10 @@
 #include "lexer.h"
 #include "token.h"
 
+#include "utils/ast_data.h"
+
+#include "trace.h"
+
 #include <ctype.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -225,6 +229,8 @@ Token *lexer_next_token(Lexer *lexer) {
             if (c == '\n') {
                 lexer->line++;
                 lexer->column = 1;
+            } else if (c == '\t') {
+                lexer->column += 4;
             } else {
                 lexer->column++;
             }
@@ -268,7 +274,6 @@ Token *lexer_next_token(Lexer *lexer) {
 
                 in_user_defined_type = false;
                 Token* tok = lexer_create_token(lexer, TOKEN_TYPEDECLARATION, start, lexer->index);
-                printf("User defined type: %s\n", tok->value);
                 return tok;
             }
 
@@ -418,14 +423,17 @@ void lexer_lexall(Lexer *lexer, bool print) {
     }
 }
 
-DataType get_data_type(const char *type_str) {
-    for (int i = 0; i < DATA_TYPE_TOTAL; i++) {
-        if (strcmp(type_str, types[i]) == 0) {
-            return i;
+void add_data_type(Lexer *lexer, char *name, bool builtin);
+
+DataType* get_data_type(const char *type_str, ASTData *data) {
+    for (size_t i = 0; i < data->data_type_count; i++) {
+        if (strcmp(type_str, data->data_types[i].name) == 0) {
+            return &data->data_types[i];
         }
     }
-
-    return DATA_TYPE_TOTAL;
+    print_trace();
+    fprintf(stderr, "Error: Type %s not found\n", type_str);
+    exit(1);
 }
 
 KeywordType get_keyword_type(const char *keyword_str) {

@@ -42,19 +42,10 @@ typedef enum {
     KEYWORD_TOTAL,
 } KeywordType;
 
-typedef enum {
-    DATA_TYPE_I8 = 0,
-    DATA_TYPE_I16,
-    DATA_TYPE_I32,
-    DATA_TYPE_I64,
-    DATA_TYPE_F32,
-    DATA_TYPE_F64,
-    DATA_TYPE_STR,
-    DATA_TYPE_CHR,
-    DATA_TYPE_BLN,
-    DATA_TYPE_VOID,
-    DATA_TYPE_PTR,
-    DATA_TYPE_TOTAL,
+typedef struct DataType {
+    size_t id;
+    const char *name;
+    bool builtin;
 } DataType;
 
 Lexer *lexer_create(char *filename);
@@ -70,6 +61,9 @@ void lexer_lexall(Lexer *lexer, bool print);
 void lexer_print_token(Token *token);
 void lexer_print_tokens(Lexer *lexer);
 
+typedef struct ASTData ASTData;
+
 char *token_type_to_string(TokenType type);
-DataType get_data_type(const char *type_str);
+void add_data_type(Lexer *lexer, char *name, bool builtin);
+DataType* get_data_type(const char *type_str, ASTData *data);
 KeywordType get_keyword_type(const char *keyword_str);

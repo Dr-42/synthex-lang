@@ -3,11 +3,13 @@
 #include <string.h>
 
 #include "codegen.h"
+#include "utils/ast_data.h"
 #include "utils/codegen_data.h"
 
 extern const char* types[];
 extern const size_t TYPE_COUNT;
 
+extern ASTData* ast_data;
 extern CodegenData* codegen_data;
 extern LLVMTypeRef* llvm_types;
 
@@ -22,7 +24,7 @@ void visit_node_variable_declaration(Node* node, LLVMBuilderRef builder) {
     char* var_name = NULL;
 
     var_name = node->data;
-    DataType data_type = get_data_type(node->children[0]->data);
+    size_t data_type = get_data_type(node->children[0]->data, ast_data)->id;
     type = llvm_types[data_type];
 
     if (var_name != NULL) {
@@ -49,13 +51,13 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
         if (child->type == NODE_IDENTIFIER) {
             func_name = child->data;
         } else if (child->type == NODE_TYPE) {
-            DataType data_type = get_data_type(child->data);
+            size_t data_type = get_data_type(child->data, ast_data)->id;
             if (data_type == DATA_TYPE_PTR) {
                 size_t pointer_degree = 1;
                 Node* type_node = child->children[0];
                 bool is_ptr = false;
                 while (!is_ptr) {
-                    if (get_data_type(type_node->data) == DATA_TYPE_PTR) {
+                    if (get_data_type(type_node->data, ast_data)->id == DATA_TYPE_PTR) {
                         type_node = type_node->children[0];
                         pointer_degree++;
                     } else {
@@ -64,8 +66,8 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
                 }
 
                 LLVMTypeRef type = NULL;
-                DataType data_type = get_data_type(type_node->data);
-                if (data_type == DATA_TYPE_TOTAL) {
+                size_t data_type = get_data_type(type_node->data, ast_data)->id;
+                if (data_type == ast_data->data_type_count) {
                     fprintf(stderr, "Error: Pointer '%s' could not be declared due to empty base data type\n", func_name);
                     return;
                 }
@@ -103,13 +105,13 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
                     continue;
                 }
                 Node* type_node = child->children[0];
-                if (get_data_type(type_node->data) == DATA_TYPE_PTR) {
+                if (get_data_type(type_node->data, ast_data)->id == DATA_TYPE_PTR) {
                     LLVMTypeRef base_data_type = NULL;
                     size_t pointer_degree = 0;
                     LLVMTypeRef type;
                     bool is_ptr = false;
                     while (!is_ptr) {
-                        if (get_data_type(type_node->data) == DATA_TYPE_PTR) {
+                        if (get_data_type(type_node->data, ast_data)->id == DATA_TYPE_PTR) {
                             type_node = type_node->children[0];
                             pointer_degree++;
                         } else {
@@ -117,8 +119,8 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
                         }
                     }
 
-                    DataType data_type = get_data_type(type_node->data);
-                    if (data_type == DATA_TYPE_TOTAL) {
+                    size_t data_type = get_data_type(type_node->data, ast_data)->id;
+                    if (data_type == ast_data->data_type_count) {
                         fprintf(stderr, "Error: Pointer '%s' could not be declared due to empty base data type\n", func_name);
                         return;
                     }
@@ -139,7 +141,7 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
                     arg_names[arg_index] = child->data;
                     arg_index++;
                 } else {
-                    DataType arg_ty = get_data_type(type_node->data);
+                    size_t arg_ty = get_data_type(type_node->data, ast_data)->id;
                     arg_types[arg_index] = llvm_types[arg_ty];
                     arg_names[arg_index] = child->data;
                     arg_index++;
@@ -182,21 +184,21 @@ void visit_node_pointer_declaration(Node* node, LLVMBuilderRef builder) {
         if (child->type == NODE_IDENTIFIER) {
             var_name = child->data;
         } else if (child->type == NODE_TYPE) {
-            assert(get_data_type(child->data) == DATA_TYPE_PTR);
+            assert(get_data_type(child->data, ast_data)->id == DATA_TYPE_PTR);
             // Find the pointer type. The child of the pointer type node is the type
             // If the child is a ptr type, then the child of the ptr type node is the type and so on
             Node* type_node = child->children[0];
             bool is_ptr = false;
             while (!is_ptr) {
-                if (get_data_type(type_node->data) == DATA_TYPE_PTR) {
+                if (get_data_type(type_node->data, ast_data)->id == DATA_TYPE_PTR) {
                     type_node = type_node->children[0];
                     pointer_degree++;
                 } else {
                     is_ptr = true;
                 }
             }
-            DataType data_type = get_data_type(type_node->data);
-            if (data_type == DATA_TYPE_TOTAL) {
+            size_t data_type = get_data_type(type_node->data, ast_data)->id;
+            if (data_type == ast_data->data_type_count) {
                 fprintf(stderr, "Error: Pointer '%s' could not be declared due to empty base data type\n", var_name);
                 return;
             }
@@ -560,7 +562,7 @@ void visit_node_array_declaration(Node* node, LLVMBuilderRef builder) {
         Node* child = node->children[i];
         if (child->type == NODE_TYPE) {
             type_node = child;
-            DataType data_type = get_data_type(child->data);
+            size_t data_type = get_data_type(child->data, ast_data)->id;
             array_element_type = llvm_types[data_type];
         } else if (child->type == NODE_IDENTIFIER) {
             array_name = child->data;

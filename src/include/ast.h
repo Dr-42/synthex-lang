@@ -41,3 +41,5 @@ Node* ast_parse_expression(Lexer* lexer);
 Node* ast_parse_array_index(Lexer* lexer);
 Node* ast_parse_call_expression(Lexer* lexer);
 Node* ast_parse_struct_declaration(Lexer* lexer);
+Node* ast_parse_struct_access(Lexer* lexer);
+Node* ast_parse_struct_member_assignment(Lexer* lexer);

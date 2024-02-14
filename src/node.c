@@ -122,15 +122,21 @@ char* node_type_to_string(NodeType type) {
             return "NODE_FALSE_LITERAL";
         case NODE_NULL_LITERAL:
             return "NODE_NULL_LITERAL";
+        case NODE_BRK_STATEMENT:
+            return "NODE_BRK_STATEMENT";
+        case NODE_CONT_STATEMENT:
+            return "NODE_CONT_STATEMENT";
         case NODE_STRUCT_DECLARATION:
             return "NODE_STRUCT_DECLARATION";
         case NODE_STRUCT_MEMBER:
             return "NODE_STRUCT_MEMBER";
+        case NODE_STRUCT_MEMBER_ASSIGNMENT:
+            return "NODE_STRUCT_MEMBER_ASSIGNMENT";
+        case NODE_STRUCT_ACCESS:
+            return "NODE_STRUCT_ACCESS";
         case NODE_COMMENT:
             return "NODE_COMMENT";
         case NODE_DOC_COMMENT:
             return "NODE_DOC_COMMENT";
-        default:
-            return "UNKNOWN";
     }
 }
