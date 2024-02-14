@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "codegen.h"
+#include "node.h"
 #include "utils/codegen_data.h"
 
 extern const char* types[];
@@ -125,6 +126,9 @@ LLVMValueRef visit_node_expression(Node* node, LLVMBuilderRef builder) {
                 continue;
             case NODE_IDENTIFIER:
                 lhs = visit_node_identifier(child, builder, true);
+                continue;
+            case NODE_STRUCT_ACCESS:
+                lhs = visit_node_struct_access(child, builder);
                 continue;
             case NODE_OPERATOR: {
                 if (node->num_children < 2) {

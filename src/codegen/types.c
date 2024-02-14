@@ -856,7 +856,7 @@ void visit_node_struct_declaration(Node *node) {
             }
             size_t data_type = get_data_type(member_child->data, ast_data)->id;
             member_types[member_index] = llvm_types[data_type];
-            member_names[member_index] = member_child->data;
+            member_names[member_index] = child->data;
             member_index++;
         }
     }
@@ -954,5 +954,82 @@ void visit_node_struct_member_assignment(Node* node, LLVMBuilderRef builder) {
         LLVMValueRef struct_pointer = LLVMBuildLoad2(builder, pointer_type, strct, "strctptr");
         LLVMValueRef gep = LLVMBuildStructGEP2(builder, struct_element_type, struct_pointer, member_index, "strctgeptmp");
         LLVMBuildStore(builder, value, gep);
+    }
+}
+
+LLVMValueRef visit_node_struct_access(Node* node, LLVMBuilderRef builder) {
+    const char* struct_name = NULL;
+    const char* member_name = NULL;
+    size_t member_index = 0;
+    LLVMValueRef strct = NULL;
+
+    Node* member_child = node->children[0];
+    if (member_child->type != NODE_STRUCT_MEMBER) {
+        printf("Error: Struct member '%s' has no type\n", (char*)member_child->data);
+        return NULL;
+    }
+
+    struct_name = node->data;
+    member_name = member_child->data;
+
+    CodegenData_Variable* variable_data = codegen_data_get_variable(codegen_data, struct_name);
+    bool found = false;
+    bool is_pointer = false;
+
+    CodegenData_Struct* struct_data = NULL;
+
+    if (variable_data != NULL) {
+        strct = variable_data->variable;
+        struct_data = codegen_data_get_struct(codegen_data, variable_data->variable_type_name);
+        found = true;
+    }
+
+    CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, struct_name);
+    if (!found) {
+        if (pointer_data != NULL) {
+            strct = pointer_data->pointer;
+            assert("Not dealing with pointers to structs now");
+            found = true;
+            is_pointer = true;
+        }
+    }
+
+    if (strct == NULL) {
+        printf("Error: Cannot access undeclared struct '%s'\n", struct_name);
+        return NULL;
+    }
+
+    if (!is_pointer) {
+        size_t num_members = struct_data->struct_member_count;
+        LLVMTypeRef struct_type = struct_data->struct_type;
+
+        for (size_t i = 0; i < num_members; i++) {
+            if (strcmp(struct_data->struct_member_names[i], member_name) == 0) {
+                member_index = i;
+                break;
+            }
+        }
+
+        LLVMValueRef gep = LLVMBuildStructGEP2(builder, struct_type, strct, member_index, "strctgeptmp");
+        LLVMValueRef value = LLVMBuildLoad2(builder, struct_data->struct_member_types[member_index], gep, "loadtmp");
+        return value;
+    } else {
+        LLVMTypeRef struct_type = pointer_data->pointer_type;
+        LLVMTypeRef struct_element_type = pointer_data->pointer_base_type;
+        LLVMTypeRef pointer_type = LLVMPointerType(struct_type, 0);
+        
+        size_t num_members = struct_data->struct_member_count;
+        for (size_t i = 0; i < num_members; i++) {
+            if (strcmp(struct_data->struct_member_names[i], member_name) == 0) {
+                member_index = i;
+                break;
+            }
+        }
+
+        // Offset the pointer
+        LLVMValueRef struct_pointer = LLVMBuildLoad2(builder, pointer_type, strct, "strctptr");
+        LLVMValueRef gep = LLVMBuildStructGEP2(builder, struct_element_type, struct_pointer, member_index, "strctgeptmp");
+        LLVMValueRef value = LLVMBuildLoad2(builder, struct_data->struct_member_types[member_index], gep, "loadtmp");
+        return value;
     }
 }

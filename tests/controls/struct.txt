@@ -1,0 +1,3 @@
+Name: John
+id: 22
+salary : 3400
