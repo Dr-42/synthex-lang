@@ -109,7 +109,7 @@ size_t user_defined_types_count = 0;
 bool in_user_defined_type = false;
 
 const size_t KEYWORD_COUNT = array_length(keywords);
-const size_t TYPE_COUNT = array_length(types);
+const size_t BUILTIN_TYPE_COUNT = array_length(types);
 const size_t OPERATOR_COUNT = array_length(operators);
 const size_t PUNCTUATION_COUNT = array_length(punctuation);
 const size_t COMMENT_COUNT = array_length(comments);
@@ -254,7 +254,7 @@ Token *lexer_next_token(Lexer *lexer) {
         }
 
         // Match types
-        for (uint32_t i = 0; i < TYPE_COUNT; i++) {
+        for (uint32_t i = 0; i < BUILTIN_TYPE_COUNT; i++) {
             if (strncmp(&lexer->contents[lexer->index], types[i], strlen(types[i])) == 0) {
                 lexer->index += strlen(types[i]);
                 lexer->column += strlen(types[i]);

@@ -6,13 +6,14 @@
 #include "utils/codegen_data.h"
 
 extern const char* types[];
-extern const size_t TYPE_COUNT;
+extern const size_t BUILTIN_TYPE_COUNT;
+size_t user_type_count = 0;
 
 CodegenData* codegen_data;
 LLVMTypeRef* llvm_types;
 
 void convert_all_types(LLVMContextRef ctx) {
-    llvm_types = calloc(TYPE_COUNT, sizeof(LLVMTypeRef));
+    llvm_types = calloc(BUILTIN_TYPE_COUNT - 1, sizeof(LLVMTypeRef));
     llvm_types[DATA_TYPE_I8] = LLVMInt8TypeInContext(ctx);
     llvm_types[DATA_TYPE_I16] = LLVMInt16TypeInContext(ctx);
     llvm_types[DATA_TYPE_I32] = LLVMInt32TypeInContext(ctx);
@@ -112,6 +113,9 @@ LLVMValueRef visit_node(Node* node, LLVMBuilderRef builder) {
             break;
         case NODE_ARRAY_ELEMENT:
             return visit_node_array_element(node, builder);
+            break;
+        case NODE_STRUCT_DECLARATION:
+            visit_node_struct_declaration(node);
             break;
         case NODE_IF_STATEMENT:
             visit_node_if_statement(node, builder);

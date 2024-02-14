@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     strcpy(ll_filename, filename);
     strcat(ll_filename, ".ll");
 
-    ast_to_llvm(ast, lexer->filename, ll_filename, false);
+    ast_to_llvm(ast, lexer->filename, ll_filename, true);
 
     ast_destroy(ast);
     lexer_destroy(lexer);

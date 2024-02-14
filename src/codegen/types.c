@@ -7,7 +7,8 @@
 #include "utils/codegen_data.h"
 
 extern const char* types[];
-extern const size_t TYPE_COUNT;
+extern const size_t BUILTIN_TYPE_COUNT;
+extern size_t user_type_count;
 
 extern ASTData* ast_data;
 extern CodegenData* codegen_data;
@@ -825,4 +826,52 @@ LLVMValueRef visit_node_call_expression(Node* node, LLVMBuilderRef builder) {
     free(param_types);  // free parameter types
     free(args);
     return ret;
+}
+
+void visit_node_struct_declaration(Node *node) {
+    const char* struct_name = node->data;
+    LLVMTypeRef struct_type = NULL;
+    size_t member_count = 0;
+    LLVMTypeRef* member_types = NULL;
+    char** member_names = NULL;
+
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_STRUCT_MEMBER) {
+            member_count++;
+        }
+    }
+
+    member_types = calloc(member_count, sizeof(LLVMTypeRef));
+    member_names = calloc(member_count, sizeof(char*));
+    size_t member_index = 0;
+    for (size_t i = 0; i < node->num_children; i++) {
+        Node* child = node->children[i];
+        if (child->type == NODE_STRUCT_MEMBER) {
+            for (size_t j = 0; j < child->num_children; j++) {
+                Node* member_child = child->children[j];
+                if (member_child->type == NODE_TYPE) {
+                    size_t data_type = get_data_type(member_child->data, ast_data)->id;
+                    member_types[member_index] = llvm_types[data_type];
+                } else if (member_child->type == NODE_IDENTIFIER) {
+                    member_names[member_index] = member_child->data;
+                }
+            }
+            member_index++;
+        }
+    }
+
+    struct_type = LLVMStructCreateNamed(codegen_data->context, struct_name);
+    LLVMStructSetBody(struct_type, member_types, member_count, false);
+    CodegenData_Struct* struct_data = codegen_data_create_struct(struct_name, struct_type, member_types, member_names, member_count);
+    codegen_data_add_struct(codegen_data, struct_data);
+    
+    free(member_types);
+    free(member_names);
+
+    // Add to types
+    user_type_count++;
+    llvm_types = realloc(llvm_types, sizeof(LLVMTypeRef) * (BUILTIN_TYPE_COUNT + user_type_count));
+    llvm_types[BUILTIN_TYPE_COUNT + user_type_count - 1] = struct_type;
+    return;
 }

@@ -9,6 +9,7 @@ CodegenData* codegen_data_create(LLVMModuleRef module, LLVMContextRef context) {
     data->variables = NULL;
     data->arrays = NULL;
     data->pointers = NULL;
+    data->structs = NULL;
     data->while_merge_block = NULL;
     data->while_cond_block = NULL;
     data->current_function = NULL;
@@ -17,6 +18,7 @@ CodegenData* codegen_data_create(LLVMModuleRef module, LLVMContextRef context) {
     data->variable_count = 0;
     data->array_count = 0;
     data->pointer_count = 0;
+    data->struct_count = 0;
 
     data->module = module;
     data->context = context;
@@ -36,6 +38,9 @@ void codegen_data_destroy(CodegenData* data) {
     for (size_t i = 0; i < data->pointer_count; i++) {
         codegen_data_pointer_destroy(data->pointers[i]);
     }
+    for (size_t i = 0; i < data->struct_count; i++) {
+        codegen_data_struct_destroy(data->structs[i]);
+    }
     free(data->functions);
     free(data->variables);
     free(data->arrays);
@@ -44,42 +49,32 @@ void codegen_data_destroy(CodegenData* data) {
 }
 
 void codegen_data_add_function(CodegenData* data, CodegenData_Function* function) {
-    if (data->function_count == 0) {
-        data->functions = malloc(sizeof(CodegenData_Function*));
-    } else {
-        data->functions = realloc(data->functions, sizeof(CodegenData_Function*) * (data->function_count + 1));
-    }
+    data->functions = realloc(data->functions, sizeof(CodegenData_Function*) * (data->function_count + 1));
     data->functions[data->function_count] = function;
     data->function_count++;
 }
 
 void codegen_data_add_variable(CodegenData* data, CodegenData_Variable* variable) {
-    if (data->variable_count == 0) {
-        data->variables = malloc(sizeof(CodegenData_Variable*));
-    } else {
-        data->variables = realloc(data->variables, sizeof(CodegenData_Variable*) * (data->variable_count + 1));
-    }
+    data->variables = realloc(data->variables, sizeof(CodegenData_Variable*) * (data->variable_count + 1));
     data->variables[data->variable_count] = variable;
     data->variable_count++;
 }
 void codegen_data_add_array(CodegenData* data, CodegenData_Array* array) {
-    if (data->array_count == 0) {
-        data->arrays = malloc(sizeof(CodegenData_Array*));
-    } else {
-        data->arrays = realloc(data->arrays, sizeof(CodegenData_Array*) * (data->array_count + 1));
-    }
+    data->arrays = realloc(data->arrays, sizeof(CodegenData_Array*) * (data->array_count + 1));
     data->arrays[data->array_count] = array;
     data->array_count++;
 }
 
 void codegen_data_add_pointer(CodegenData* data, CodegenData_Pointer* pointer) {
-    if (data->pointer_count == 0) {
-        data->pointers = malloc(sizeof(CodegenData_Pointer*));
-    } else {
-        data->pointers = realloc(data->pointers, sizeof(CodegenData_Pointer*) * (data->pointer_count + 1));
-    }
+    data->pointers = realloc(data->pointers, sizeof(CodegenData_Pointer*) * (data->pointer_count + 1));
     data->pointers[data->pointer_count] = pointer;
     data->pointer_count++;
+}
+
+void codegen_data_add_struct(CodegenData* data, CodegenData_Struct* strukt) {
+    data->structs = realloc(data->structs, sizeof(CodegenData_Struct*) * (data->struct_count + 1));
+    data->structs[data->struct_count] = strukt;
+    data->struct_count++;
 }
 
 CodegenData_Function* codegen_data_create_function(const char* function_name, LLVMValueRef function, LLVMTypeRef return_type, LLVMTypeRef* parameter_types, LLVMValueRef* parameters, size_t parameter_count, bool is_vararg) {
@@ -136,6 +131,20 @@ CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMV
 
 void codegen_data_pointer_destroy(CodegenData_Pointer* pointer) {
     free(pointer);
+}
+
+CodegenData_Struct* codegen_data_create_struct(const char* struct_name, LLVMTypeRef struct_type, LLVMTypeRef* struct_member_types, char** struct_member_names, size_t struct_member_count) {
+    CodegenData_Struct* strukt = malloc(sizeof(CodegenData_Struct));
+    strukt->struct_name = struct_name;
+    strukt->struct_type = struct_type;
+    strukt->struct_member_types = struct_member_types;
+    strukt->struct_member_names = struct_member_names;
+    strukt->struct_member_count = struct_member_count;
+    return strukt;
+}
+
+void codegen_data_struct_destroy(CodegenData_Struct* strukt) {
+    free(strukt);
 }
 
 void codegen_data_reset_scope(CodegenData* data) {

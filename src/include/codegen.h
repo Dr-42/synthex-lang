@@ -28,6 +28,8 @@ void visit_node_array_assignment(Node* node, LLVMBuilderRef builder);
 LLVMValueRef visit_node_array_element(Node* node, LLVMBuilderRef builder);
 LLVMValueRef visit_node_call_expression(Node* node, LLVMBuilderRef builder);
 
+void visit_node_struct_declaration(Node* node);
+
 // In file expressions.c
 LLVMValueRef visit_node_unary_operator(Node* node, LLVMBuilderRef builder, LLVMValueRef value1);
 LLVMValueRef visit_node_binary_operator(Node* node, LLVMBuilderRef builder, LLVMValueRef value1, LLVMValueRef value2);
