@@ -1251,7 +1251,7 @@ Node* ast_parse_struct_declaration(Lexer* lexer) {
         lexer_advance_cursor(lexer, 1);
 
         Variable* var = ast_data_variable_create(member->data, get_data_type(type->data, ast_data));
-        ast_data_add_variable(ast_data, var);
+        ast_data_struct_add_member(strct, var);
     }
     ast_data_add_struct(ast_data, strct);
     return struct_declaration;
@@ -1290,13 +1290,13 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
     for (size_t i = 0; i < ast_data->variable_count; i++) {
         if (strcmp(ast_data->variables[i].name, token->value) == 0) {
             found_struct = true;
-            // char* type = ast_data->variables[i].type;
-            // for (size_t j = 0; j < ast_data->struct_count; j++) {
-            //     if (strcmp(ast_data->structs[j].name, type) == 0) {
-            //         struct_idx = j;
-            //         break;
-            //     }
-            // }
+            DataType* type = ast_data->variables[i].type;
+            for (size_t j = 0; j < ast_data->struct_count; j++) {
+                if (strcmp(ast_data->structs[j].name, type->name) == 0) {
+                    struct_idx = j;
+                    break;
+                }
+            }
             break;
         }
     }
@@ -1318,12 +1318,15 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
         ast_error(token, "Expected identifier after dot operator in struct member assignment, got %s\n", token->value);
     }
     
+    bool found_member = false;
     for (size_t i = 0; i < ast_data->structs[struct_idx].member_count; i++) {
         if (strcmp(ast_data->structs[struct_idx].members[i].name, token->value) == 0) {
+            found_member = true;
             break;
-        } else if (i == ast_data->structs[struct_idx].member_count - 1) {
-            ast_error(token, "Cannot assign to undeclared struct member %s\n", token->value);
         }
+    }
+    if (!found_member) {
+        ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx].name);
     }
 
     Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
