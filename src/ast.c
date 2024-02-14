@@ -898,14 +898,7 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                     node_add_child(expression, array_element);
                     break;
                 } else if (next_tok->type == TOKEN_OPERATOR && (strcmp(next_tok->value, ".") == 0)) {
-                    lexer_advance_cursor(lexer, 1);
-                    Node* struct_access = create_node(NODE_STRUCT_ACCESS, token->value, token->line, token->column);
-                    lexer_advance_cursor(lexer, 1);
-                    Token* member = lexer_peek_token(lexer, 0);
-                    if (member->type != TOKEN_IDENTIFIER) {
-                        ast_error(member, "Expected identifier after struct access operator, got %s\n", member->value);
-                    }
-                    node_add_child(struct_access, create_node(NODE_IDENTIFIER, member->value, member->line, member->column));
+                    Node* struct_access = ast_parse_struct_access(lexer);
                     node_add_child(expression, struct_access);
                     break;
                 } else {
@@ -1262,6 +1255,26 @@ Node* ast_parse_struct_access(Lexer* lexer) {
     if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier as left-hand side of struct access, got %s\n", token->value);
     }
+    bool found_struct = false;
+    size_t struct_idx = 0;
+    for (size_t i = 0; i < ast_data->variable_count; i++) {
+        if (strcmp(ast_data->variables[i].name, token->value) == 0) {
+            found_struct = true;
+            DataType* type = ast_data->variables[i].type;
+            for (size_t j = 0; j < ast_data->struct_count; j++) {
+                if (strcmp(ast_data->structs[j].name, type->name) == 0) {
+                    struct_idx = j;
+                    break;
+                }
+            }
+            break;
+        }
+    }
+
+    if (!found_struct) {
+        ast_error(token, "Cannot access an undeclared struct %s\n", token->value);
+    }
+
     Node* struct_access = create_node(NODE_STRUCT_ACCESS, token->value, token->line, token->column);
     lexer_advance_cursor(lexer, 1);
     token = lexer_peek_token(lexer, 0);
@@ -1273,9 +1286,20 @@ Node* ast_parse_struct_access(Lexer* lexer) {
     if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier after dot operator in struct access, got %s\n", token->value);
     }
+
+    bool found_member = false;
+    for (size_t i = 0; i < ast_data->structs[struct_idx].member_count; i++) {
+        if (strcmp(ast_data->structs[struct_idx].members[i].name, token->value) == 0) {
+            found_member = true;
+            break;
+        }
+    }
+    if (!found_member) {
+        ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx].name);
+    }
+
     Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
     node_add_child(struct_access, member);
-    lexer_advance_cursor(lexer, 1);
     return struct_access;
 }
 
