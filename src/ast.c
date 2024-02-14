@@ -1,4 +1,6 @@
 #include "ast.h"
+#include "lexer.h"
+#include "token.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -92,6 +94,8 @@ Node* ast_parse_statement(Lexer* lexer) {
         } else if (keyword_type == KEYWORD_CONT) {
             statement = create_node(NODE_CONT_STATEMENT, NULL, token->line, token->column);
             lexer_advance_cursor(lexer, 1);
+        } else if (keyword_type == KEYWORD_STRUCT) {
+            statement = ast_parse_struct_declaration(lexer);
         } else {
             ast_error(token, "Unexpected keyword", token->value);
         }
@@ -1181,4 +1185,55 @@ Node* ast_parse_call_expression(Lexer* lexer) {
         ast_error(token, "Expected closing parenthesis after call expression, got %s\n", token->value);
     }
     return call_expression;
+}
+
+Node* ast_parse_struct_declaration(Lexer* lexer) {
+    Token* token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_KEYWORD || get_keyword_type(token->value) != KEYWORD_STRUCT) {
+        ast_error(token, "Expected struct keyword in struct declaration, got %s\n", token->value);
+    }
+    lexer_advance_cursor(lexer, 1);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_TYPEDECLARATION) {
+        ast_error(token, "Expected identifier after struct keyword in struct declaration, got %s\n", token->value);
+    }
+    Node* struct_declaration = create_node(NODE_STRUCT_DECLARATION, token->value, token->line, token->column);
+    lexer_advance_cursor(lexer, 1);
+    token = lexer_peek_token(lexer, 0);
+    if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, "{") != 0) {
+        ast_error(token, "Expected opening curly brace after struct identifier in struct declaration, got %s\n", token->value);
+    }
+
+    lexer_advance_cursor(lexer, 1);
+    while (true) {
+        token = lexer_peek_token(lexer, 0);
+        if (token->type == TOKEN_PUNCTUATION && strcmp(token->value, "}") == 0) {
+            lexer_advance_cursor(lexer, 1);
+            break;
+        }
+        if (token->type != TOKEN_IDENTIFIER) {
+            ast_error(token, "Expected identifier as member of struct, got %s\n", token->value);
+        }
+        Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
+        lexer_advance_cursor(lexer, 1);
+        token = lexer_peek_token(lexer, 0);
+        if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, ":") != 0) {
+            ast_error(token, "Expected colon after identifier in struct member, got %s\n", token->value);
+        }
+        lexer_advance_cursor(lexer, 1);
+        token = lexer_peek_token(lexer, 0);
+        if (token->type != TOKEN_TYPEANNOTATION) {
+            ast_error(token, "Expected type after identifier in struct member, got %s\n", token->value);
+        }
+        Node* type = create_node(NODE_TYPE, token->value, token->line, token->column);
+        node_add_child(member, type);
+        lexer_advance_cursor(lexer, 1);
+        token = lexer_peek_token(lexer, 0);
+        if (token->type != TOKEN_PUNCTUATION || strcmp(token->value, ",") != 0) {
+            ast_error(token, "Expected semicolon after type in struct member, got %s\n", token->value);
+        }
+        node_add_child(struct_declaration, member);
+        lexer_advance_cursor(lexer, 1);
+    }
+    return struct_declaration;
 }

@@ -40,3 +40,4 @@ Node* ast_parse_pointer_deref(Lexer* lexer);
 Node* ast_parse_expression(Lexer* lexer);
 Node* ast_parse_array_index(Lexer* lexer);
 Node* ast_parse_call_expression(Lexer* lexer);
+Node* ast_parse_struct_declaration(Lexer* lexer);

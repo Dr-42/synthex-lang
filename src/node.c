@@ -122,6 +122,10 @@ char* node_type_to_string(NodeType type) {
             return "NODE_FALSE_LITERAL";
         case NODE_NULL_LITERAL:
             return "NODE_NULL_LITERAL";
+        case NODE_STRUCT_DECLARATION:
+            return "NODE_STRUCT_DECLARATION";
+        case NODE_STRUCT_MEMBER:
+            return "NODE_STRUCT_MEMBER";
         case NODE_COMMENT:
             return "NODE_COMMENT";
         case NODE_DOC_COMMENT:
