@@ -237,31 +237,6 @@ Token *lexer_next_token(Lexer *lexer) {
             continue;
         }
 
-        // Match keywords
-        for (uint32_t i = 0; i < KEYWORD_COUNT; i++) {
-            if (strncmp(&lexer->contents[lexer->index], keywords[i], strlen(keywords[i])) == 0) {
-                lexer->index += strlen(keywords[i]);
-                lexer->column += strlen(keywords[i]);
-                if (strcmp(keywords[i], "struct") == 0) {
-                    in_user_defined_type = true;
-                } else if (strcmp(keywords[i], "enum") == 0) {
-                    in_user_defined_type = true;
-                } else if (strcmp(keywords[i], "union") == 0) {
-                    in_user_defined_type = true;
-                }
-                return lexer_create_token(lexer, TOKEN_KEYWORD, lexer->index - strlen(keywords[i]), lexer->index);
-            }
-        }
-
-        // Match types
-        for (uint32_t i = 0; i < BUILTIN_TYPE_COUNT; i++) {
-            if (strncmp(&lexer->contents[lexer->index], types[i], strlen(types[i])) == 0) {
-                lexer->index += strlen(types[i]);
-                lexer->column += strlen(types[i]);
-                return lexer_create_token(lexer, TOKEN_TYPEANNOTATION, lexer->index - strlen(types[i]), lexer->index);
-            }
-        }
-
         if (isalpha(c) || c == '_') {
             size_t start = lexer->index;
             while (isalpha(lexer->contents[lexer->index]) || isdigit(lexer->contents[lexer->index]) || lexer->contents[lexer->index] == '_' || lexer->contents[lexer->index] == '-') {
@@ -279,8 +254,28 @@ Token *lexer_next_token(Lexer *lexer) {
 
             // Match user defined types
             Token* tok = lexer_create_token(lexer, TOKEN_IDENTIFIER, start, lexer->index);
+
             for (size_t i = 0; i < user_defined_types_count; i++) {
                 if (strcmp(tok->value, user_defined_types[i]) == 0) {
+                    tok->type = TOKEN_TYPEANNOTATION;
+                    break;
+                }
+            }
+
+            // Match keywords
+            for (uint32_t i = 0; i < KEYWORD_COUNT; i++) {
+                if (strcmp(tok->value, keywords[i]) == 0) {
+                    tok->type = TOKEN_KEYWORD;
+                    if (strcmp(tok->value, "struct") == 0 || strcmp(tok->value, "enum") == 0 || strcmp(tok->value, "union") == 0) {
+                        in_user_defined_type = true;
+                    }
+                    break;
+                }
+            }
+
+            // Match types
+            for (uint32_t i = 0; i < BUILTIN_TYPE_COUNT; i++) {
+                if (strcmp(tok->value, types[i]) == 0) {
                     tok->type = TOKEN_TYPEANNOTATION;
                     break;
                 }
