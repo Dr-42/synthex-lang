@@ -1283,6 +1283,7 @@ Node* ast_parse_struct_access(Lexer* lexer) {
     }
     lexer_advance_cursor(lexer, 1);
     
+    Node* prev_node = NULL;
     while(true) {
         token = lexer_peek_token(lexer, 0);
         if (token->type != TOKEN_IDENTIFIER) {
@@ -1304,7 +1305,13 @@ Node* ast_parse_struct_access(Lexer* lexer) {
         }
 
         Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
-        node_add_child(struct_access, member);
+        if (prev_node != NULL) {
+            node_add_child(prev_node, member);
+            prev_node = member;
+        } else {
+            node_add_child(struct_access, member);
+            prev_node = member;
+        }
 
         Token* next_token = lexer_peek_token(lexer, 1);
         if (next_token->type != TOKEN_OPERATOR || strcmp(next_token->value, ".") != 0) {
@@ -1401,7 +1408,8 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
                 ast_error(token, "Expected identifier after dot operator in struct member assignment, got %s\n", token->value);
             }
             Node* sub_member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
-            node_add_child(struct_access, sub_member);
+            node_add_child(member, sub_member);
+            member = sub_member;
             lexer_advance_cursor(lexer, 1);
         } else {
             ast_error(token, "Expected assignment operator or sub-struct member assignment after struct member access in struct member assignment, got %s\n", token->value);
