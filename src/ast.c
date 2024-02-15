@@ -1282,24 +1282,51 @@ Node* ast_parse_struct_access(Lexer* lexer) {
         ast_error(token, "Expected dot operator after identifier in struct access, got %s\n", token->value);
     }
     lexer_advance_cursor(lexer, 1);
-    token = lexer_peek_token(lexer, 0);
-    if (token->type != TOKEN_IDENTIFIER) {
-        ast_error(token, "Expected identifier after dot operator in struct access, got %s\n", token->value);
-    }
+    
+    while(true) {
+        token = lexer_peek_token(lexer, 0);
+        if (token->type != TOKEN_IDENTIFIER) {
+            ast_error(token, "Expected identifier after dot operator in struct access, got %s\n", token->value);
+        }
 
-    bool found_member = false;
-    for (size_t i = 0; i < ast_data->structs[struct_idx].member_count; i++) {
-        if (strcmp(ast_data->structs[struct_idx].members[i].name, token->value) == 0) {
-            found_member = true;
+        bool found_member = false;
+        size_t member_idx = 0;
+        for (size_t i = 0; i < ast_data->structs[struct_idx].member_count; i++) {
+            const char* member_name = ast_data->structs[struct_idx].members[i].name;
+            if (strcmp(member_name, token->value) == 0) {
+                found_member = true;
+                member_idx = i;
+                break;
+            }
+        }
+        if (!found_member) {
+            ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx].name);
+        }
+
+        Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
+        node_add_child(struct_access, member);
+
+        Token* next_token = lexer_peek_token(lexer, 1);
+        if (next_token->type != TOKEN_OPERATOR || strcmp(next_token->value, ".") != 0) {
             break;
         }
-    }
-    if (!found_member) {
-        ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx].name);
-    }
+        lexer_advance_cursor(lexer, 2);
 
-    Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
-    node_add_child(struct_access, member);
+        bool found_struct = false;
+        // Check if the member is a struct
+        for (size_t i = 0; i < ast_data->struct_count; i++) {
+            const char* member_type = ast_data->structs[struct_idx].members[member_idx].type->name;
+            const char* current_struct = ast_data->structs[i].name;
+            if (strcmp(current_struct, member_type) == 0) {
+                struct_idx = i;
+                found_struct = true;
+                break;
+            }
+        }
+        if (!found_struct) {
+            ast_error(token, "Cannot access member %s in struct %s, it is not a struct\n", token->value, ast_data->structs[struct_idx].name);
+        }
+    }
     return struct_access;
 }
 
@@ -1357,12 +1384,28 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
     node_add_child(struct_access, member);
     node_add_child(struct_member_assignment, struct_access);
     lexer_advance_cursor(lexer, 1);
-    token = lexer_peek_token(lexer, 0);
-    if (token->type != TOKEN_OPERATOR || strcmp(token->value, "=") != 0) {
-        ast_error(token, "Expected assignment operator after struct member access in struct member assignment, got %s\n", token->value);
+    while (true) {
+        token = lexer_peek_token(lexer, 0);
+        if (token->type != TOKEN_OPERATOR) {
+            ast_error(token, "Expected assignment operator or sub-struct member assignment after struct member access in struct member assignment, got %s\n", token->value);
+        }
+        if (strcmp(token->value, "=") == 0) {
+            lexer_advance_cursor(lexer, 1);
+            Node* expression = ast_parse_expression(lexer);
+            node_add_child(struct_member_assignment, expression);
+            break;
+        } else if (strcmp(token->value, ".") == 0) {
+            lexer_advance_cursor(lexer, 1);
+            token = lexer_peek_token(lexer, 0);
+            if (token->type != TOKEN_IDENTIFIER) {
+                ast_error(token, "Expected identifier after dot operator in struct member assignment, got %s\n", token->value);
+            }
+            Node* sub_member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
+            node_add_child(struct_access, sub_member);
+            lexer_advance_cursor(lexer, 1);
+        } else {
+            ast_error(token, "Expected assignment operator or sub-struct member assignment after struct member access in struct member assignment, got %s\n", token->value);
+        }
     }
-    lexer_advance_cursor(lexer, 1);
-    Node* expression = ast_parse_expression(lexer);
-    node_add_child(struct_member_assignment, expression);
     return struct_member_assignment;
 }
