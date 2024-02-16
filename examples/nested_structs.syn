@@ -1,0 +1,58 @@
+fnc print(a : str, ...) : void;
+
+struct barn {
+	zim: i32,
+	pot: str,
+}
+
+struct fon {
+	foo: i32,
+	bar: i32,
+	bari: barn,
+};
+
+struct address {
+	house_no: i32,
+	street: str,
+	state: str,
+	pin: i32,
+	foon: fon,
+};
+
+struct employee {
+	salary: f32,
+	name : str,
+	res : address,
+	id : i32,
+};
+
+
+fnc main() : i32 {
+	john : employee;
+	john.name = "John";
+	john.id = 22;
+	john.salary = 3400.045;
+
+	john.res.house_no = 20;
+	john.res.street = "Main road";
+	john.res.state = "Utah";
+	john.res.pin = 11009876;
+
+	john.res.foon.foo = 42;
+	john.res.foon.bar = 69;
+
+	john.res.foon.bari.zim = 98;
+	john.res.foon.bari.pot = "Megadodo";
+
+	print("Name: %s\nid: %d\nsalary : %f\n", john.name, john.id, john.salary);
+	print(
+		"Address:\n\tHouse No: %d\n\tStreet: %s\n\tState: %s\n\tPin: %d\n", 
+		john.res.house_no,
+		john.res.street,
+		john.res.state,
+		john.res.pin
+	);
+	print("Foon: %d, %d\n", john.res.foon.foo, john.res.foon.bar);
+	print("Bari: %d, %s\n", john.res.foon.bari.zim, john.res.foon.bari.pot);
+	ret 0;
+}

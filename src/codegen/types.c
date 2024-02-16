@@ -814,6 +814,17 @@ LLVMValueRef visit_node_call_expression(Node* node, LLVMBuilderRef builder) {
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
             args[arg_count] = visit_node_expression(node->children[i], builder);
+            // Promote integer types to 32-bit
+            // Promote float types to double
+            if (is_function_vararg) {
+                if (LLVMGetTypeKind(LLVMTypeOf(args[arg_count])) == LLVMIntegerTypeKind) {
+                    if (LLVMGetIntTypeWidth(LLVMTypeOf(args[arg_count])) < 32) {
+                        args[arg_count] = LLVMBuildIntCast2(builder, args[arg_count], LLVMInt32Type(), true, "intcast");
+                    }
+                } else if (LLVMGetTypeKind(LLVMTypeOf(args[arg_count])) == LLVMFloatTypeKind) {
+                    args[arg_count] = LLVMBuildFPCast(builder, args[arg_count], LLVMDoubleType(), "fpcast");
+                }
+            }
             arg_count++;
         }
     }
@@ -972,6 +983,10 @@ void visit_node_struct_member_assignment(Node* node, LLVMBuilderRef builder) {
         fprintf(stderr, "Error: Cannot assign to struct pointer yet '%s'\n", struct_name);
         exit(1);
     }
+
+    free(member_names);
+    free(member_indices);
+    free(structs_data);
 }
 
 LLVMValueRef visit_node_struct_access(Node* node, LLVMBuilderRef builder) {
@@ -1068,4 +1083,8 @@ LLVMValueRef visit_node_struct_access(Node* node, LLVMBuilderRef builder) {
         fprintf(stderr, "Error: Cannot access to struct pointer yet '%s'\n", struct_name);
         exit(1);
     }
+
+    free(member_names);
+    free(member_indices);
+    free(structs_data);
 }

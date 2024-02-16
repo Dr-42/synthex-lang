@@ -146,6 +146,8 @@ CodegenData_Struct* codegen_data_create_struct(const char* struct_name, LLVMType
 }
 
 void codegen_data_struct_destroy(CodegenData_Struct* strukt) {
+    free(strukt->struct_member_type_names);
+    free(strukt->struct_member_names);
     free(strukt);
 }
 

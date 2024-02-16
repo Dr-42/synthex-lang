@@ -1,0 +1,10 @@
+Name: John
+id: 22
+salary : 3400.044922
+Address:
+        House No: 20
+        Street: Main road
+        State: Utah
+        Pin: 11009876
+Foon: 42, 69
+Bari: 98, Megadodo

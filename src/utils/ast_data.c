@@ -40,6 +40,7 @@ void ast_data_destroy(ASTData* ast_data) {
     free(ast_data->pointers);
     free(ast_data->arrays);
     free(ast_data->structs);
+    free(ast_data->data_types);
     free(ast_data);
 }
 
