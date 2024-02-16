@@ -25,7 +25,7 @@ void convert_all_types(LLVMContextRef ctx) {
     llvm_types[DATA_TYPE_CHR] = LLVMInt8TypeInContext(ctx);
     llvm_types[DATA_TYPE_BLN] = LLVMInt1TypeInContext(ctx);
     llvm_types[DATA_TYPE_VOID] = LLVMVoidTypeInContext(ctx);
-    llvm_types[DATA_TYPE_PTR] = NULL;
+    llvm_types[DATA_TYPE_PTR] = LLVMPointerType(LLVMInt8Type(), 0);
 }
 
 void ast_to_llvm(AST* ast, const char* filename, const char* output, bool dump) {
@@ -44,7 +44,9 @@ void ast_to_llvm(AST* ast, const char* filename, const char* output, bool dump) 
     LLVMVerifyModule(module, LLVMAbortProcessAction, &error);
     LLVMDisposeMessage(error);
     // set target triple for module
-    LLVMSetTarget(module, LLVMGetDefaultTargetTriple());
+    char* target = LLVMGetDefaultTargetTriple();
+    LLVMSetTarget(module, target);
+    LLVMDisposeMessage(target);
 
     // Assuming you have an LLVM module `module` and a function named "add" in it
     LLVMExecutionEngineRef engine;

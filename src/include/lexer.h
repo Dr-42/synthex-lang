@@ -61,6 +61,8 @@ void lexer_lexall(Lexer *lexer, bool print);
 void lexer_print_token(Token *token);
 void lexer_print_tokens(Lexer *lexer);
 
+void lexer_graveyard(char *token);
+
 typedef struct ASTData ASTData;
 
 char *token_type_to_string(TokenType type);

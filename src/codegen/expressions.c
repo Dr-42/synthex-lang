@@ -236,8 +236,9 @@ char* unescape_string(const char* input) {
 
 LLVMValueRef visit_node_string_literal(Node* node, LLVMBuilderRef builder) {
     (void)builder;
-    const char* value = unescape_string(node->data);
+    char* value = unescape_string(node->data);
     LLVMValueRef string = LLVMBuildGlobalStringPtr(builder, value, "strtmp");
+    free(value);
     return string;
 }
 

@@ -50,15 +50,15 @@ typedef struct Struct {
 typedef struct ASTData {
     DataType* data_types;
     size_t data_type_count;
-    Function* functions;
+    Function** functions;
     size_t function_count;
-    Variable* variables;
+    Variable** variables;
     size_t variable_count;
-    Pointer* pointers;
+    Pointer** pointers;
     size_t pointer_count;
-    Array* arrays;
+    Array** arrays;
     size_t array_count;
-    Struct* structs;
+    Struct** structs;
     size_t struct_count;
 } ASTData;
 

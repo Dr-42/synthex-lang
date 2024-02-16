@@ -12,6 +12,9 @@
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
+char** graveyard = NULL;
+size_t graveyard_count = 0;
+
 const char *keywords[] = {
     "fnc",
     "inc",
@@ -115,7 +118,7 @@ const size_t PUNCTUATION_COUNT = array_length(punctuation);
 const size_t COMMENT_COUNT = array_length(comments);
 
 Lexer *lexer_create(char *filename) {
-    Lexer *lexer = calloc(1, sizeof(Lexer));
+    Lexer *lexer = malloc(sizeof(Lexer));
     lexer->filename = filename;
     lexer->line = 1;
     lexer->column = 1;
@@ -131,7 +134,7 @@ Lexer *lexer_create(char *filename) {
     size_t size = ftell(file);
     fseek(file, 0, SEEK_SET);
 
-    lexer->contents = calloc(size + 1, sizeof(char));
+    lexer->contents = malloc((size + 1) * sizeof(char));
     fread(lexer->contents, sizeof(char), size, file);
     fclose(file);
 
@@ -142,8 +145,15 @@ Lexer *lexer_create(char *filename) {
 }
 
 void lexer_destroy(Lexer *lexer) {
+    free(lexer->contents);
     free(lexer->tokens);
     free(lexer);
+
+    for (size_t i = 0; i < graveyard_count; i++) {
+        free(graveyard[i]);
+    }
+    graveyard_count = 0;
+    graveyard = NULL;
 }
 
 Token *lexer_peek_token(Lexer *lexer, size_t offset) {
@@ -439,4 +449,9 @@ KeywordType get_keyword_type(const char *keyword_str) {
     }
 
     return KEYWORD_TOTAL;
+}
+
+void lexer_graveyard(char *token) {
+    graveyard = realloc(graveyard, (graveyard_count + 1) * sizeof(char*));
+    graveyard[graveyard_count++] = token;
 }

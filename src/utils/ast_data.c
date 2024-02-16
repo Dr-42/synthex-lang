@@ -21,19 +21,19 @@ ASTData* ast_data_create() {
 
 void ast_data_destroy(ASTData* ast_data) {
     for (size_t i = 0; i < ast_data->function_count; i++) {
-        ast_data_function_destroy(&ast_data->functions[i]);
+        ast_data_function_destroy(ast_data->functions[i]);
     }
     for (size_t i = 0; i < ast_data->variable_count; i++) {
-        ast_data_variable_destroy(&ast_data->variables[i]);
+        ast_data_variable_destroy(ast_data->variables[i]);
     }
     for (size_t i = 0; i < ast_data->pointer_count; i++) {
-        ast_data_pointer_destroy(&ast_data->pointers[i]);
+        ast_data_pointer_destroy(ast_data->pointers[i]);
     }
     for (size_t i = 0; i < ast_data->array_count; i++) {
-        ast_data_array_destroy(&ast_data->arrays[i]);
+        ast_data_array_destroy(ast_data->arrays[i]);
     }
     for (size_t i = 0; i < ast_data->struct_count; i++) {
-        ast_data_struct_destroy(&ast_data->structs[i]);
+        ast_data_struct_destroy(ast_data->structs[i]);
     }
     free(ast_data->functions);
     free(ast_data->variables);
@@ -106,29 +106,29 @@ void ast_data_add_builtin_types(ASTData* ast_data) {
 
 void ast_data_add_function(ASTData* ast_data, Function* function) {
     ast_data->functions = realloc(ast_data->functions, sizeof(Function) * (ast_data->function_count + 1));
-    ast_data->functions[ast_data->function_count] = *function;
+    ast_data->functions[ast_data->function_count] = function;
     ast_data->function_count++;
 }
 
 void ast_data_add_variable(ASTData* ast_data, Variable* variable) {
     ast_data->variables = realloc(ast_data->variables, sizeof(Variable) * (ast_data->variable_count + 1));
-    ast_data->variables[ast_data->variable_count] = *variable;
+    ast_data->variables[ast_data->variable_count] = variable;
     ast_data->variable_count++;
 }
 void ast_data_add_pointer(ASTData* ast_data, Pointer* pointer) {
     ast_data->pointers = realloc(ast_data->pointers, sizeof(Pointer) * (ast_data->pointer_count + 1));
-    ast_data->pointers[ast_data->pointer_count] = *pointer;
+    ast_data->pointers[ast_data->pointer_count] = pointer;
     ast_data->pointer_count++;
 }
 void ast_data_add_array(ASTData* ast_data, Array* array) {
     ast_data->arrays = realloc(ast_data->arrays, sizeof(Array) * (ast_data->array_count + 1));
-    ast_data->arrays[ast_data->array_count] = *array;
+    ast_data->arrays[ast_data->array_count] = array;
     ast_data->array_count++;
 }
 
 void ast_data_add_struct(ASTData* ast_data, Struct* strct) {
     ast_data->structs = realloc(ast_data->structs, sizeof(Struct) * (ast_data->struct_count + 1));
-    ast_data->structs[ast_data->struct_count] = *strct;
+    ast_data->structs[ast_data->struct_count] = strct;
     ast_data->struct_count++;
 
     ast_data->data_type_count++;
@@ -143,23 +143,23 @@ void ast_data_add_struct(ASTData* ast_data, Struct* strct) {
 void ast_data_print(ASTData* ast_data) {
     printf("Functions:\n");
     for (size_t i = 0; i < ast_data->function_count; i++) {
-        printf("\t%s\n", ast_data->functions[i].name);
+        printf("\t%s\n", ast_data->functions[i]->name);
     }
     printf("Variables:\n");
     for (size_t i = 0; i < ast_data->variable_count; i++) {
-        printf("\t%s\n", ast_data->variables[i].name);
+        printf("\t%s\n", ast_data->variables[i]->name);
     }
     printf("Pointers:\n");
     for (size_t i = 0; i < ast_data->pointer_count; i++) {
-        printf("\t%s\n", ast_data->pointers[i].name);
+        printf("\t%s\n", ast_data->pointers[i]->name);
     }
     printf("Arrays:\n");
     for (size_t i = 0; i < ast_data->array_count; i++) {
-        printf("\t%s\n", ast_data->arrays[i].name);
+        printf("\t%s\n", ast_data->arrays[i]->name);
     }
     printf("Structs:\n");
     for (size_t i = 0; i < ast_data->struct_count; i++) {
-        printf("\t%s\n", ast_data->structs[i].name);
+        printf("\t%s\n", ast_data->structs[i]->name);
     }
 }
 

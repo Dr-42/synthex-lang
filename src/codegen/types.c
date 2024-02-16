@@ -94,8 +94,8 @@ void visit_node_function_declaration(Node* node, LLVMBuilderRef builder) {
     }
 
     if (func_name != NULL && return_type != NULL) {
-        arg_types = calloc(arg_count, sizeof(LLVMTypeRef));
-        arg_names = calloc(arg_count, sizeof(char*));
+        arg_types = malloc(arg_count * sizeof(LLVMTypeRef));
+        arg_names = malloc(arg_count * sizeof(char*));
         size_t arg_index = 0;
         for (size_t i = 0; i < node->num_children; i++) {
             Node* child = node->children[i];
@@ -775,7 +775,7 @@ LLVMValueRef visit_node_call_expression(Node* node, LLVMBuilderRef builder) {
     // Get number of parameters
     size_t param_count = LLVMCountParams(function);
     // Allocate memory for parameter types
-    LLVMTypeRef* param_types = calloc(param_count, sizeof(LLVMTypeRef));
+    LLVMTypeRef* param_types = malloc(param_count * sizeof(LLVMTypeRef));
     // Get each parameter type
     for (size_t i = 0; i < param_count; ++i) {
         LLVMValueRef param = LLVMGetParam(function, i);
@@ -809,7 +809,7 @@ LLVMValueRef visit_node_call_expression(Node* node, LLVMBuilderRef builder) {
     }
 
     size_t num_args = node->num_children - 1;
-    LLVMValueRef* args = (LLVMValueRef*)malloc(num_args * sizeof(LLVMValueRef));
+    LLVMValueRef* args = malloc(num_args * sizeof(LLVMValueRef));
     size_t arg_count = 0;
     for (size_t i = 0; i < node->num_children; i++) {
         if (node->children[i]->type == NODE_EXPRESSION) {
@@ -832,7 +832,7 @@ LLVMValueRef visit_node_call_expression(Node* node, LLVMBuilderRef builder) {
     // Check if the function is void
     LLVMValueRef ret;
     if (LLVMGetTypeKind(ret_type) == LLVMVoidTypeKind) {
-        return LLVMBuildCall2(builder, function_type, function, args, num_args, "");
+        ret = LLVMBuildCall2(builder, function_type, function, args, num_args, "");
     } else {
         ret = LLVMBuildCall2(builder, function_type, function, args, num_args, "calltmp");
     }

@@ -123,17 +123,17 @@ Node* ast_parse_statement(Lexer* lexer) {
             statement = ast_parse_array_assignment(lexer);
         } else if (next_token->type == TOKEN_OPERATOR && strcmp(next_token->value, "=") == 0) {
             for (size_t i = 0; i < ast_data->variable_count; i++) {
-                if (strcmp(ast_data->variables[i].name, token->value) == 0) {
+                if (strcmp(ast_data->variables[i]->name, token->value) == 0) {
                     return ast_parse_assignment(lexer);
                 }
             }
             for (size_t i = 0; i < ast_data->array_count; i++) {
-                if (strcmp(ast_data->arrays[i].name, token->value) == 0) {
+                if (strcmp(ast_data->arrays[i]->name, token->value) == 0) {
                     return ast_parse_array_assignment(lexer);
                 }
             }
             for (size_t i = 0; i < ast_data->pointer_count; i++) {
-                if (strcmp(ast_data->pointers[i].name, token->value) == 0) {
+                if (strcmp(ast_data->pointers[i]->name, token->value) == 0) {
                     return ast_parse_assignment(lexer);
                 }
             }
@@ -433,6 +433,7 @@ Node* ast_parse_variable_declaration(Lexer* lexer) {
         } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
             lexer_advance_cursor(lexer, 2);
             lexer->tokens[lexer->index].type = TOKEN_IDENTIFIER;
+            lexer_graveyard(lexer->tokens[lexer->index].value);
             lexer->tokens[lexer->index].value = identifier->data;
             return identifier;
         } else {
@@ -500,6 +501,7 @@ Node* ast_parse_array_declaration(Lexer* lexer) {
     } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
         lexer_advance_cursor(lexer, idx - 1);
         lexer->tokens[lexer->index].type = TOKEN_IDENTIFIER;
+        lexer_graveyard(lexer->tokens[lexer->index].value);
         lexer->tokens[lexer->index].value = identifier->data;
         return array_declaration;
     } else {
@@ -523,14 +525,14 @@ Node* ast_parse_assignment(Lexer* lexer) {
 
         bool is_pointer = false;
         for (size_t i = 0; i < ast_data->pointer_count; i++) {
-            if (strcmp(ast_data->pointers[i].name, identifier->data) == 0) {
+            if (strcmp(ast_data->pointers[i]->name, identifier->data) == 0) {
                 is_pointer = true;
                 break;
             }
         }
         if (!is_pointer) {
             for (size_t i = 0; i < ast_data->variable_count; i++) {
-                if (strcmp(ast_data->variables[i].name, identifier->data) == 0) {
+                if (strcmp(ast_data->variables[i]->name, identifier->data) == 0) {
                     break;
                 } else if (i == ast_data->variable_count - 1) {
                     ast_error(token, "Cannot assign to undeclared variable %s\n", (char*)identifier->data);
@@ -606,7 +608,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     size_t array_idx = 0;
     bool found_array = false;
     for (size_t i = 0; i < ast_data->array_count; i++) {
-        if (strcmp(ast_data->arrays[i].name, token->value) == 0) {
+        if (strcmp(ast_data->arrays[i]->name, token->value) == 0) {
             array_idx = i;
             found_array = true;
             break;
@@ -616,7 +618,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     bool is_pointer = false;
     if (!found_array) {
         for (size_t i = 0; i < ast_data->pointer_count; i++) {
-            if (strcmp(ast_data->pointers[i].name, token->value) == 0) {
+            if (strcmp(ast_data->pointers[i]->name, token->value) == 0) {
                 array_idx = i;
                 found_array = true;
                 is_pointer = true;
@@ -630,7 +632,7 @@ Node* ast_parse_array_assignment(Lexer* lexer) {
     }
 
     if (!is_pointer) {
-        size_t array_dim = ast_data->arrays[array_idx].dimension;
+        size_t array_dim = ast_data->arrays[array_idx]->dimension;
 
         Node* identifier = create_node(NODE_IDENTIFIER, token->value, token->line, token->column);
         token = lexer_peek_token(lexer, 1);
@@ -790,6 +792,7 @@ Node* ast_parse_pointer_declaration(Lexer* lexer) {
     } else if (token->type == TOKEN_OPERATOR && strcmp(token->value, "=") == 0) {
         lexer_advance_cursor(lexer, -1);
         lexer->tokens[lexer->index].type = TOKEN_IDENTIFIER;
+        lexer_graveyard(lexer->tokens[lexer->index].value);
         lexer->tokens[lexer->index].value = identifier->data;
         return pointer_declaration;
     } else {
@@ -875,8 +878,8 @@ Node* ast_parse_expression_flat(Lexer* lexer) {
                 if (next_tok->type == TOKEN_PUNCTUATION && strcmp(next_tok->value, "(") == 0) {
                     // Check if the function call returns void
                     for (size_t i = 0; i < ast_data->function_count; i++) {
-                        if (strcmp(ast_data->functions[i].name, token->value) == 0) {
-                            if (ast_data->functions[i].return_type->id == DATA_TYPE_VOID) {
+                        if (strcmp(ast_data->functions[i]->name, token->value) == 0) {
+                            if (ast_data->functions[i]->return_type->id == DATA_TYPE_VOID) {
                                 ast_error(token, "Cannot use void function \"%s\" in expression\n", token->value);
                             }
                         }
@@ -1159,7 +1162,7 @@ Node* ast_parse_call_expression(Lexer* lexer) {
     }
 
     for (size_t i = 0; i < ast_data->function_count; i++) {
-        if (strcmp(ast_data->functions[i].name, token->value) == 0) {
+        if (strcmp(ast_data->functions[i]->name, token->value) == 0) {
             break;
         } else if (i == ast_data->function_count - 1) {
             ast_error(token, "Cannot call undeclared function %s\n", token->value);
@@ -1258,11 +1261,11 @@ Node* ast_parse_struct_access(Lexer* lexer) {
     bool found_struct = false;
     size_t struct_idx = 0;
     for (size_t i = 0; i < ast_data->variable_count; i++) {
-        if (strcmp(ast_data->variables[i].name, token->value) == 0) {
+        if (strcmp(ast_data->variables[i]->name, token->value) == 0) {
             found_struct = true;
-            DataType* type = ast_data->variables[i].type;
+            DataType* type = ast_data->variables[i]->type;
             for (size_t j = 0; j < ast_data->struct_count; j++) {
-                if (strcmp(ast_data->structs[j].name, type->name) == 0) {
+                if (strcmp(ast_data->structs[j]->name, type->name) == 0) {
                     struct_idx = j;
                     break;
                 }
@@ -1292,8 +1295,8 @@ Node* ast_parse_struct_access(Lexer* lexer) {
 
         bool found_member = false;
         size_t member_idx = 0;
-        for (size_t i = 0; i < ast_data->structs[struct_idx].member_count; i++) {
-            const char* member_name = ast_data->structs[struct_idx].members[i].name;
+        for (size_t i = 0; i < ast_data->structs[struct_idx]->member_count; i++) {
+            const char* member_name = ast_data->structs[struct_idx]->members[i].name;
             if (strcmp(member_name, token->value) == 0) {
                 found_member = true;
                 member_idx = i;
@@ -1301,7 +1304,7 @@ Node* ast_parse_struct_access(Lexer* lexer) {
             }
         }
         if (!found_member) {
-            ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx].name);
+            ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx]->name);
         }
 
         Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);
@@ -1322,8 +1325,8 @@ Node* ast_parse_struct_access(Lexer* lexer) {
         bool found_struct = false;
         // Check if the member is a struct
         for (size_t i = 0; i < ast_data->struct_count; i++) {
-            const char* member_type = ast_data->structs[struct_idx].members[member_idx].type->name;
-            const char* current_struct = ast_data->structs[i].name;
+            const char* member_type = ast_data->structs[struct_idx]->members[member_idx].type->name;
+            const char* current_struct = ast_data->structs[i]->name;
             if (strcmp(current_struct, member_type) == 0) {
                 struct_idx = i;
                 found_struct = true;
@@ -1331,7 +1334,7 @@ Node* ast_parse_struct_access(Lexer* lexer) {
             }
         }
         if (!found_struct) {
-            ast_error(token, "Cannot access member %s in struct %s, it is not a struct\n", token->value, ast_data->structs[struct_idx].name);
+            ast_error(token, "Cannot access member %s in struct %s, it is not a struct\n", token->value, ast_data->structs[struct_idx]->name);
         }
     }
     return struct_access;
@@ -1346,11 +1349,11 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
     bool found_struct = false;
     size_t struct_idx = 0;
     for (size_t i = 0; i < ast_data->variable_count; i++) {
-        if (strcmp(ast_data->variables[i].name, token->value) == 0) {
+        if (strcmp(ast_data->variables[i]->name, token->value) == 0) {
             found_struct = true;
-            DataType* type = ast_data->variables[i].type;
+            DataType* type = ast_data->variables[i]->type;
             for (size_t j = 0; j < ast_data->struct_count; j++) {
-                if (strcmp(ast_data->structs[j].name, type->name) == 0) {
+                if (strcmp(ast_data->structs[j]->name, type->name) == 0) {
                     struct_idx = j;
                     break;
                 }
@@ -1377,14 +1380,14 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
     }
     
     bool found_member = false;
-    for (size_t i = 0; i < ast_data->structs[struct_idx].member_count; i++) {
-        if (strcmp(ast_data->structs[struct_idx].members[i].name, token->value) == 0) {
+    for (size_t i = 0; i < ast_data->structs[struct_idx]->member_count; i++) {
+        if (strcmp(ast_data->structs[struct_idx]->members[i].name, token->value) == 0) {
             found_member = true;
             break;
         }
     }
     if (!found_member) {
-        ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx].name);
+        ast_error(token, "Cannot assign to undeclared member %s in struct %s\n", token->value, ast_data->structs[struct_idx]->name);
     }
 
     Node* member = create_node(NODE_STRUCT_MEMBER, token->value, token->line, token->column);

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include "ast.h"
 #include "codegen.h"
@@ -65,17 +67,47 @@ int test_file(char *filename, char* expected_filename) {
     system("clang test.ll tests/t.c -o t");
 
     // Create a pipe to read the output of the program
-    FILE *pipe = popen("./t", "r");
-    if (!pipe) {
-        fprintf(stderr, "%sERROR:%s Failed to open pipe\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
-        return -1;
-    }
-    char buffer[4096];
-    while (!feof(pipe)) {
-        fgets(buffer, 4096, pipe);
-    }
-    pclose(pipe);
+    int pipefd[2];
+    pid_t pid;
+    char buffer[1024];
+    int bytes_read = 0;
 
+    // Create a pipe
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(1);
+    }
+
+    // Fork a child process
+    pid = fork();
+    if (pid == -1) {
+        perror("fork");
+        exit(1);
+    }
+
+    // Child process: write to stdout through the pipe
+    if (pid == 0) {
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[0]);
+        execl("./t", "t", NULL); // Replace with actual arguments
+        perror("execl");
+        exit(1);
+    }
+
+    // Parent process: read from pipe (stdout of child)
+    close(pipefd[1]); // Close write end
+    while (1) {
+        int bytes = read(pipefd[0], buffer + bytes_read, sizeof(buffer) - bytes_read);
+        if (bytes == 0) {
+            // Add \n and \0 to the end of the buffer
+            buffer[bytes_read] = '\0';
+            break;
+        }
+        bytes_read += bytes;
+    }
+
+    // Wait for child process to finish
+    wait(NULL);
     // Get the exit code of the program
     int exit_code = WEXITSTATUS(system("./t >> /dev/null 2>&1"));
     if (exit_code != 0) {
@@ -90,9 +122,14 @@ int test_file(char *filename, char* expected_filename) {
         return -1;
     }
     char expected_buffer[4096];
-    while (!feof(expected)) {
-        fgets(expected_buffer, 4096, expected);
+    size_t len = fread(expected_buffer, sizeof(char), 4096, expected);
+    if (ferror(expected) != 0) {
+        fprintf(stderr, "%sERROR:%s Failed to read expected file: %s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET, expected_filename);
+        return -1;
+    } else {
+        expected_buffer[len++] = '\0';
     }
+    fclose(expected);
 
     if (strcmp(buffer, expected_buffer) != 0) {
         fprintf(stderr, "%sERROR:%s Output does not match expected output\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
