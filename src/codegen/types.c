@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <llvm-c/Core.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "codegen.h"
@@ -975,29 +976,54 @@ void visit_node_struct_member_assignment(Node* node, LLVMBuilderRef builder) {
 
 LLVMValueRef visit_node_struct_access(Node* node, LLVMBuilderRef builder) {
     const char* struct_name = NULL;
-    const char* member_name = NULL;
-    size_t member_index = 0;
+    char** member_names = NULL;
+    size_t* member_indices = NULL;
     LLVMValueRef strct = NULL;
 
-    Node* member_child = node->children[0];
-    if (member_child->type != NODE_STRUCT_MEMBER) {
-        printf("Error: Struct member '%s' has no type\n", (char*)member_child->data);
-        return NULL;
-    }
-
+    size_t member_depth = 0;
     struct_name = node->data;
-    member_name = member_child->data;
+    while(true) {
+        Node* member_child = node->children[0];
+        if (member_child->type != NODE_STRUCT_MEMBER) {
+            printf("Error: Struct member '%s' has no type\n", (char*)member_child->data);
+            exit(EXIT_FAILURE);
+        }
+        member_names = realloc(member_names, sizeof(const char*) * member_depth + 1);
+        member_names[member_depth] = member_child->data;
+        member_depth++;
+        if (member_child->num_children != 0) {
+            node = member_child;
+        } else break;
+    }
 
     CodegenData_Variable* variable_data = codegen_data_get_variable(codegen_data, struct_name);
     bool found = false;
     bool is_pointer = false;
 
-    CodegenData_Struct* struct_data = NULL;
+    CodegenData_Struct** structs_data = NULL;
+    structs_data = malloc(sizeof(CodegenData_Struct*) * member_depth);
+    member_indices = malloc(sizeof(size_t) * member_depth);
+
 
     if (variable_data != NULL) {
-        strct = variable_data->variable;
-        struct_data = codegen_data_get_struct(codegen_data, variable_data->variable_type_name);
-        found = true;
+        for (size_t i = 0; i < member_depth; i++) {
+            if (i == 0) {
+                strct = variable_data->variable;
+                structs_data[i] = codegen_data_get_struct(codegen_data, variable_data->variable_type_name);
+                if (strct != NULL) found = true;
+            } else {
+                CodegenData_Struct* struct_data = structs_data[i - 1];
+                for (size_t j = 0; j < struct_data->struct_member_count; j++) {
+                    char* struct_member_name = struct_data->struct_member_names[j];
+                    char* member_name = member_names[i - 1];
+                    if (strcmp(struct_member_name, member_name) == 0) {
+                        char* member_type = struct_data->struct_member_type_names[j];
+                        structs_data[i] = codegen_data_get_struct(codegen_data, member_type);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, struct_name);
@@ -1016,36 +1042,30 @@ LLVMValueRef visit_node_struct_access(Node* node, LLVMBuilderRef builder) {
     }
 
     if (!is_pointer) {
-        size_t num_members = struct_data->struct_member_count;
-        LLVMTypeRef struct_type = struct_data->struct_type;
+        LLVMTypeRef value_type = NULL;
+        LLVMValueRef gep = NULL;
+        for (size_t i = 0; i < member_depth; i++) {
+            size_t num_members = structs_data[i]->struct_member_count;
+            LLVMTypeRef struct_type = structs_data[i]->struct_type;
 
-        for (size_t i = 0; i < num_members; i++) {
-            if (strcmp(struct_data->struct_member_names[i], member_name) == 0) {
-                member_index = i;
-                break;
+            for (size_t j = 0; j < num_members; j++) {
+                if (strcmp(structs_data[i]->struct_member_names[j], member_names[i]) == 0) {
+                    member_indices[i] = j;
+                    break;
+                }
             }
-        }
 
-        LLVMValueRef gep = LLVMBuildStructGEP2(builder, struct_type, strct, member_index, "strctgeptmp");
-        LLVMValueRef value = LLVMBuildLoad2(builder, struct_data->struct_member_types[member_index], gep, "loadtmp");
+            if (i == 0) {
+                gep = LLVMBuildStructGEP2(builder, struct_type, strct, member_indices[i], "strctgeptmp");
+            } else {
+                gep = LLVMBuildStructGEP2(builder, struct_type, gep, member_indices[i], "strctgeptmp");
+            }
+            value_type = structs_data[i]->struct_member_types[member_indices[i]];
+        }
+        LLVMValueRef value = LLVMBuildLoad2(builder, value_type, gep, "loadtmp");
         return value;
     } else {
-        LLVMTypeRef struct_type = pointer_data->pointer_type;
-        LLVMTypeRef struct_element_type = pointer_data->pointer_base_type;
-        LLVMTypeRef pointer_type = LLVMPointerType(struct_type, 0);
-        
-        size_t num_members = struct_data->struct_member_count;
-        for (size_t i = 0; i < num_members; i++) {
-            if (strcmp(struct_data->struct_member_names[i], member_name) == 0) {
-                member_index = i;
-                break;
-            }
-        }
-
-        // Offset the pointer
-        LLVMValueRef struct_pointer = LLVMBuildLoad2(builder, pointer_type, strct, "strctptr");
-        LLVMValueRef gep = LLVMBuildStructGEP2(builder, struct_element_type, struct_pointer, member_index, "strctgeptmp");
-        LLVMValueRef value = LLVMBuildLoad2(builder, struct_data->struct_member_types[member_index], gep, "loadtmp");
-        return value;
+        fprintf(stderr, "Error: Cannot access to struct pointer yet '%s'\n", struct_name);
+        exit(1);
     }
 }
