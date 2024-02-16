@@ -134,11 +134,12 @@ void codegen_data_pointer_destroy(CodegenData_Pointer* pointer) {
     free(pointer);
 }
 
-CodegenData_Struct* codegen_data_create_struct(const char* struct_name, LLVMTypeRef struct_type, LLVMTypeRef* struct_member_types, char** struct_member_names, size_t struct_member_count) {
+CodegenData_Struct* codegen_data_create_struct(const char* struct_name, LLVMTypeRef struct_type, LLVMTypeRef* struct_member_types, char** member_type_names, char** struct_member_names, size_t struct_member_count) {
     CodegenData_Struct* strukt = malloc(sizeof(CodegenData_Struct));
     strukt->struct_name = struct_name;
     strukt->struct_type = struct_type;
     strukt->struct_member_types = struct_member_types;
+    strukt->struct_member_type_names = member_type_names;
     strukt->struct_member_names = struct_member_names;
     strukt->struct_member_count = struct_member_count;
     return strukt;
