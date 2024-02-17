@@ -105,29 +105,29 @@ void ast_data_add_builtin_types(ASTData* ast_data) {
 }
 
 void ast_data_add_function(ASTData* ast_data, Function* function) {
-    ast_data->functions = realloc(ast_data->functions, sizeof(Function) * (ast_data->function_count + 1));
+    ast_data->functions = realloc(ast_data->functions, sizeof(Function*) * (ast_data->function_count + 1));
     ast_data->functions[ast_data->function_count] = function;
     ast_data->function_count++;
 }
 
 void ast_data_add_variable(ASTData* ast_data, Variable* variable) {
-    ast_data->variables = realloc(ast_data->variables, sizeof(Variable) * (ast_data->variable_count + 1));
+    ast_data->variables = realloc(ast_data->variables, sizeof(Variable*) * (ast_data->variable_count + 1));
     ast_data->variables[ast_data->variable_count] = variable;
     ast_data->variable_count++;
 }
 void ast_data_add_pointer(ASTData* ast_data, Pointer* pointer) {
-    ast_data->pointers = realloc(ast_data->pointers, sizeof(Pointer) * (ast_data->pointer_count + 1));
+    ast_data->pointers = realloc(ast_data->pointers, sizeof(Pointer*) * (ast_data->pointer_count + 1));
     ast_data->pointers[ast_data->pointer_count] = pointer;
     ast_data->pointer_count++;
 }
 void ast_data_add_array(ASTData* ast_data, Array* array) {
-    ast_data->arrays = realloc(ast_data->arrays, sizeof(Array) * (ast_data->array_count + 1));
+    ast_data->arrays = realloc(ast_data->arrays, sizeof(Array*) * (ast_data->array_count + 1));
     ast_data->arrays[ast_data->array_count] = array;
     ast_data->array_count++;
 }
 
 void ast_data_add_struct(ASTData* ast_data, Struct* strct) {
-    ast_data->structs = realloc(ast_data->structs, sizeof(Struct) * (ast_data->struct_count + 1));
+    ast_data->structs = realloc(ast_data->structs, sizeof(Struct*) * (ast_data->struct_count + 1));
     ast_data->structs[ast_data->struct_count] = strct;
     ast_data->struct_count++;
 
