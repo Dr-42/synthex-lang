@@ -946,10 +946,15 @@ void visit_node_struct_member_assignment(Node* node, LLVMBuilderRef builder) {
         }
     }
 
-    CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, struct_name);
+    CodegenData_Pointer* pointer_data;
     if (!found) {
+        pointer_data = codegen_data_get_pointer(codegen_data, struct_name);
         if (pointer_data != NULL) {
             strct = pointer_data->pointer;
+            if (pointer_data->pointer_degree != 1) {
+                printf("Error: Cannot assign to pointer of degree %lu\n", pointer_data->pointer_degree);
+                return;
+            }
             found = true;
             is_pointer = true;
             for (size_t i = 0; i < member_depth; i++) {
@@ -1076,13 +1081,17 @@ LLVMValueRef visit_node_struct_access(Node* node, LLVMBuilderRef builder) {
         }
     }
 
-    CodegenData_Pointer* pointer_data = codegen_data_get_pointer(codegen_data, struct_name);
+    CodegenData_Pointer* pointer_data;
     if (!found) {
+        pointer_data = codegen_data_get_pointer(codegen_data, struct_name);
         if (pointer_data != NULL) {
             strct = pointer_data->pointer;
             found = true;
             is_pointer = true;
-
+            if (pointer_data->pointer_degree != 1) {
+                printf("Error: Cannot access pointer of degree %lu\n", pointer_data->pointer_degree);
+                return NULL;
+            }
             for (size_t i = 0; i < member_depth; i++) {
                 if (i == 0) {
                     structs_data[i] = codegen_data_get_struct(codegen_data, pointer_data->pointer_base_type_name);
