@@ -1275,6 +1275,22 @@ Node* ast_parse_struct_access(Lexer* lexer) {
     }
 
     if (!found_struct) {
+        for (size_t i = 0; i < ast_data->pointer_count; i++) {
+            if (strcmp(ast_data->pointers[i]->name, token->value) == 0) {
+                found_struct = true;
+                DataType* type = ast_data->pointers[i]->base_type;
+                for (size_t j = 0; j < ast_data->struct_count; j++) {
+                    if (strcmp(ast_data->structs[j]->name, type->name) == 0) {
+                        struct_idx = j;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if (!found_struct) {
         ast_error(token, "Cannot access an undeclared struct %s\n", token->value);
     }
 
@@ -1363,6 +1379,22 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
     }
 
     if (!found_struct) {
+        for (size_t i = 0; i < ast_data->pointer_count; i++) {
+            if (strcmp(ast_data->pointers[i]->name, token->value) == 0) {
+                found_struct = true;
+                DataType* type = ast_data->pointers[i]->base_type;
+                for (size_t j = 0; j < ast_data->struct_count; j++) {
+                    if (strcmp(ast_data->structs[j]->name, type->name) == 0) {
+                        struct_idx = j;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if (!found_struct) {
         ast_error(token, "Cannot assign to undeclared struct %s\n", token->value);
     }
 
@@ -1378,7 +1410,7 @@ Node* ast_parse_struct_member_assignment(Lexer* lexer) {
     if (token->type != TOKEN_IDENTIFIER) {
         ast_error(token, "Expected identifier after dot operator in struct member assignment, got %s\n", token->value);
     }
-    
+
     bool found_member = false;
     for (size_t i = 0; i < ast_data->structs[struct_idx]->member_count; i++) {
         if (strcmp(ast_data->structs[struct_idx]->members[i].name, token->value) == 0) {

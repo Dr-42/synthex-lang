@@ -120,9 +120,10 @@ void codegen_data_array_destroy(CodegenData_Array* array) {
     free(array);
 }
 
-CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type, size_t pointer_degree) {
+CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, const char* pointer_base_type_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type, size_t pointer_degree) {
     CodegenData_Pointer* pointer_data = malloc(sizeof(CodegenData_Pointer));
     pointer_data->pointer_name = pointer_name;
+    pointer_data->pointer_base_type_name = pointer_base_type_name;
     pointer_data->pointer = pointer;
     pointer_data->pointer_type = pointer_type;
     pointer_data->pointer_base_type = pointer_base_type;

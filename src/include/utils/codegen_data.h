@@ -31,6 +31,7 @@ typedef struct CodegenData_Array {
 
 typedef struct CodegenData_Pointer {
     const char* pointer_name;
+    const char* pointer_base_type_name;
     LLVMTypeRef pointer_type;
     LLVMTypeRef pointer_base_type;
     LLVMValueRef pointer;
@@ -88,7 +89,7 @@ void codegen_data_variable_destroy(CodegenData_Variable* variable);
 CodegenData_Array* codegen_data_create_array(const char* array_name, LLVMValueRef array, LLVMTypeRef array_type, LLVMTypeRef array_element_type, size_t array_dim);
 void codegen_data_array_destroy(CodegenData_Array* array);
 
-CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type, size_t pointer_degree);
+CodegenData_Pointer* codegen_data_create_pointer(const char* pointer_name, const char* pointer_base_type_name, LLVMValueRef pointer, LLVMTypeRef pointer_type, LLVMTypeRef pointer_base_type, size_t pointer_degree);
 void codegen_data_pointer_destroy(CodegenData_Pointer* pointer);
 
 CodegenData_Struct* codegen_data_create_struct(const char* struct_name, LLVMTypeRef struct_type, LLVMTypeRef* struct_member_types, char** member_type_names, char** struct_member_names, size_t struct_member_count);
