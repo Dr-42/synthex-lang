@@ -66,6 +66,5 @@ void lexer_graveyard(char *token);
 typedef struct ASTData ASTData;
 
 char *token_type_to_string(TokenType type);
-void add_data_type(Lexer *lexer, char *name, bool builtin);
 DataType* get_data_type(const char *type_str, ASTData *data);
 KeywordType get_keyword_type(const char *keyword_str);

@@ -428,8 +428,6 @@ void lexer_lexall(Lexer *lexer, bool print) {
     }
 }
 
-void add_data_type(Lexer *lexer, char *name, bool builtin);
-
 DataType* get_data_type(const char *type_str, ASTData *data) {
     for (size_t i = 0; i < data->data_type_count; i++) {
         if (strcmp(type_str, data->data_types[i].name) == 0) {
