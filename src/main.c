@@ -21,8 +21,8 @@ void sigsegv_handler(int signum) {
 
 int main(int argc, char *argv[]) {
     signal(SIGSEGV, sigsegv_handler);
-    if (argc != 2) {
-        printf("Usage: %s <filename>\n", argv[0]);
+    if (argc != 4) {
+        printf("Usage: %s <filename> -o <output>\n", argv[0]);
         return 1;
     }
 
@@ -31,7 +31,8 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    Lexer *lexer = lexer_create(argv[1]);
+    char* filename = argv[1];
+    Lexer *lexer = lexer_create(filename);
     if (lexer == NULL) {
         printf("Failed to create lexer\n");
         return 1;
@@ -44,10 +45,26 @@ int main(int argc, char *argv[]) {
     ast_data_print(ast->data);
     // ast_print_declarations();
 
-    char* filename = argv[1];
-    char ll_filename[256];
-    strcpy(ll_filename, filename);
-    strcat(ll_filename, ".ll");
+
+    // Find the index where the argument is "-o"
+    int index = -1;
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "-o") == 0) {
+            index = i;
+            break;
+        }
+    }
+    if (index == -1) {
+        printf("Usage: %s <filename> -o <output>\n", argv[0]);
+        return 1;
+    }
+
+    // Get the filename after "-o"
+    char* ll_filename = argv[index+1];
+    if (ll_filename == NULL) {
+        printf("Usage: %s <filename> -o <output>\n", argv[0]);
+        return 1;
+    }
 
     ast_to_llvm(ast, lexer->filename, ll_filename, true);
 
